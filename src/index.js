@@ -1,4 +1,4 @@
-export const version = '0.1.1'
+export const version = '0.1.2'
 var radi
 
 const COLON = ':'.charCodeAt(0)
@@ -25,6 +25,7 @@ function parseAllRoutes(arr) {
 	return ret
 }
 
+// TODO: Get rid of class
 class Route {
 	constructor(curr, match, routes, key) {
 		var m = curr.match(match[0])
@@ -45,14 +46,18 @@ function router(src) {
   		if (lr === curr) return ld
   		if (!cr) cr = Object.keys(ro.routes)
   		if (!crg) crg = parseAllRoutes(cr)
+			var cahnged = false
 
   		for (var i = 0; i < crg.length; i++) {
   			if (crg[i][0].test(curr)) {
   				ld = new Route(curr, crg[i], ro.routes, cr[i])
+					cahnged = true
   				break
   			}
   		}
-  		return ld
+
+			lr = curr
+  		return (!cahnged) ? {key: '$error'} : ld
   	}
 
     // TODO: get rid of window variables
@@ -67,7 +72,7 @@ function router(src) {
         function () { var ret = r('div', new r_routes['${route}']()); if(r_after)r_after(); return ret; }
       ).`)
     }
-    if (conds !== '') conds = conds.concat('else(\'Error 404\')')
+    if (conds !== '') conds = conds.concat('else(r(\'div\', \'Error 404\'))')
 
     var fn = `return r('div', ${conds})`
 
@@ -76,7 +81,8 @@ function router(src) {
       view: new Function(fn),
       state: {
         // _radi_no_debug: true,
-        location: window.location.hash.substr(1),
+        location: window.location.hash.substr(1) || '/',
+        last: null,
         active: null
       },
       actions: {
@@ -85,12 +91,13 @@ function router(src) {
           this.hashChange()
         },
         hashChange() {
-          this.location = window.location.hash.substr(1)
+					this.last = this.location
+          this.location = window.location.hash.substr(1) || '/'
           var a = getRoute(this.location)
           if (a) {
             this.active = a.key
           }
-          // console.log('[radi-router] Route change', a)
+          // console.log('[radi-router] Route change', a, this.location)
         }
       }
     })
