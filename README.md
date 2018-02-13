@@ -30,7 +30,7 @@ Documentation is currently being written. For now just a few examples to work ou
 
 #### Foo bar routing example
 
-```
+```jsx
 /** @jsx r **/
 import { r, use, mount, component } from 'radi'
 import router from 'radi-router'
