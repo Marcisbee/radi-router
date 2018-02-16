@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.1.2';
+const version = '0.1.6';
 var radi;
 
 const COLON = ':'.charCodeAt(0);
@@ -48,7 +48,7 @@ class Route {
 	}
 }
 
-function router(src) {
+function router(src, mixin) {
   radi = src;
   return function(ro) {
 	  function getRoute(curr) {
@@ -64,13 +64,9 @@ function router(src) {
   				break
   			}
   		}
-			if (!cahnged) {
-				ld = {
-					key: '/$error'
-				};
-			}
+
 			lr = curr;
-  		return ld
+  		return (!cahnged) ? {key: '$error'} : ld
   	}
 
     // TODO: get rid of window variables
@@ -89,6 +85,12 @@ function router(src) {
 
     var fn = `return r('div', ${conds})`;
 
+		var mix = mixin('$router', {
+			active: '',
+			last: '',
+			location: '',
+		});
+
     return radi.component({
       name: 'radi-router',
       view: new Function(fn),
@@ -96,13 +98,16 @@ function router(src) {
         // _radi_no_debug: true,
         location: window.location.hash.substr(1) || '/',
         last: null,
-        active: null
+        active: null,
       },
       actions: {
+
         onMount() {
+					this.updateMixin();
           window.onhashchange = this.hashChange;
           this.hashChange();
         },
+
         hashChange() {
 					this.last = this.location;
           this.location = window.location.hash.substr(1) || '/';
@@ -110,8 +115,16 @@ function router(src) {
           if (a) {
             this.active = a.key;
           }
+					this.updateMixin();
           // console.log('[radi-router] Route change', a, this.location)
-        }
+        },
+
+				updateMixin() {
+					mix.active = this.active;
+					mix.last = this.last;
+					mix.location = this.location;
+				},
+
       }
     })
   };
