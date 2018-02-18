@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.1.7';
+const version = '0.1.8';
 var radi;
 
 const COLON = ':'.charCodeAt(0);
@@ -114,12 +114,10 @@ function router(src, mixin) {
 					this.last = this.location;
           this.location = window.location.hash.substr(1) || '/';
           var a = getRoute(this.location);
-          if (a) {
-            this.active = a.key;
-            this.params = a.params;
-          }
+					this.params = a.params || {};
 					this.updateMixin();
-          console.log('[radi-router] Route change', a, this.location);
+					this.active = a.key || '';
+          // console.log('[radi-router] Route change', a, this.location)
         },
 
 				updateMixin() {
