@@ -1,4 +1,4 @@
-export const version = '0.1.6'
+export const version = '0.1.7'
 var radi
 
 const COLON = ':'.charCodeAt(0)
@@ -78,6 +78,7 @@ function router(src, mixin) {
 
 		var mix = mixin('$router', {
 			active: '',
+			params: {},
 			last: '',
 			location: '',
 		})
@@ -88,13 +89,14 @@ function router(src, mixin) {
       state: {
         // _radi_no_debug: true,
         location: window.location.hash.substr(1) || '/',
+        params: {},
         last: null,
         active: null,
       },
       actions: {
 
         onMount() {
-					this.updateMixin()
+					// this.updateMixin()
           window.onhashchange = this.hashChange
           this.hashChange()
         },
@@ -105,12 +107,14 @@ function router(src, mixin) {
           var a = getRoute(this.location)
           if (a) {
             this.active = a.key
+            this.params = a.params
           }
 					this.updateMixin()
-          // console.log('[radi-router] Route change', a, this.location)
+          console.log('[radi-router] Route change', a, this.location)
         },
 
 				updateMixin() {
+					mix.params = this.params
 					mix.active = this.active
 					mix.last = this.last
 					mix.location = this.location
