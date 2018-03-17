@@ -1,4 +1,6 @@
-export const version = '0.1.8'
+/** @jsx r **/
+
+export const version = '0.2.0'
 var radi
 
 const COLON = ':'.charCodeAt(0)
@@ -39,88 +41,197 @@ class Route {
 	}
 }
 
-function router(src, mixin) {
-  radi = src
-  return function(ro) {
-	  function getRoute(curr) {
-  		if (lr === curr) return ld
-  		if (!cr) cr = Object.keys(ro.routes)
-  		if (!crg) crg = parseAllRoutes(cr)
-			var cahnged = false
+// function router(src, mixin) {
+//   radi = src
+//   return function(ro) {
+// 	  function getRoute(curr) {
+//   		if (lr === curr) return ld
+//   		if (!cr) cr = Object.keys(ro.routes)
+//   		if (!crg) crg = parseAllRoutes(cr)
+// 			var cahnged = false
+//
+//   		for (var i = 0; i < crg.length; i++) {
+//   			if (crg[i][0].test(curr)) {
+//   				ld = new Route(curr, crg[i], ro.routes, cr[i])
+// 					cahnged = true
+//   				break
+//   			}
+//   		}
+//
+// 			lr = curr
+//   		return (!cahnged) ? {key: '$error'} : ld
+//   	}
+//
+//     // TODO: get rid of window variables
+//     window.r_routes = ro.routes
+//     window.r_before = ro.beforeEach || true
+//     window.r_after = ro.afterEach || null
+//
+//     var conds = ''
+//     for (var route in ro.routes) {
+//       conds = conds.concat(`cond(
+//         l(this.active === '${route}' && (r_before === true || r_before('${route}',2))),
+//         function () { var ret = r('div', new r_routes['${route}']()); if(r_after)r_after(); return ret; }
+//       ).`)
+//     }
+//     if (conds !== '') conds = conds.concat('else(r(\'div\', \'Error 404\'))')
+//
+//     var fn = `return r('div', ${conds})`
+//
+// 		var mix = mixin('$router', {
+// 			active: '',
+// 			params: {},
+// 			last: '',
+// 			location: '',
+// 		})
+//
+//     return radi.component({
+//       name: 'radi-router',
+//       view: new Function(fn),
+//       state: {
+//         // _radi_no_debug: true,
+//         location: window.location.hash.substr(1) || '/',
+//         params: {},
+//         last: null,
+//         active: null,
+//       },
+//       actions: {
+//
+//         onMount() {
+// 					// this.updateMixin()
+//           window.onhashchange = this.hashChange
+//           this.hashChange()
+//         },
+//
+//         hashChange() {
+// 					this.last = this.location
+//           this.location = window.location.hash.substr(1) || '/'
+//           var a = getRoute(this.location)
+// 					this.params = a.params || {}
+// 					this.updateMixin()
+// 					this.active = a.key || ''
+//           // console.log('[radi-router] Route change', a, this.location)
+//         },
+//
+// 				updateMixin() {
+// 					mix.params = this.params
+// 					mix.active = this.active
+// 					mix.last = this.last
+// 					mix.location = this.location
+// 				},
+//
+//       }
+//     })
+//   };
+// };
 
-  		for (var i = 0; i < crg.length; i++) {
-  			if (crg[i][0].test(curr)) {
-  				ld = new Route(curr, crg[i], ro.routes, cr[i])
-					cahnged = true
-  				break
-  			}
-  		}
+// exports.default = router;
 
-			lr = curr
-  		return (!cahnged) ? {key: '$error'} : ld
-  	}
 
-    // TODO: get rid of window variables
-    window.r_routes = ro.routes
-    window.r_before = ro.beforeEach || true
-    window.r_after = ro.afterEach || null
 
-    var conds = ''
-    for (var route in ro.routes) {
-      conds = conds.concat(`cond(
-        l(this.active === '${route}' && (r_before === true || r_before('${route}',2))),
-        function () { var ret = r('div', new r_routes['${route}']()); if(r_after)r_after(); return ret; }
-      ).`)
-    }
-    if (conds !== '') conds = conds.concat('else(r(\'div\', \'Error 404\'))')
 
-    var fn = `return r('div', ${conds})`
+const { r, l, component } = require('../../radi').default
+let current = {}
 
-		var mix = mixin('$router', {
-			active: '',
-			params: {},
-			last: '',
-			location: '',
-		})
+const getRoute = (curr) => {
+	if (lr === curr) return ld
+	if (!cr) cr = Object.keys(current.routes)
+	if (!crg) crg = parseAllRoutes(cr)
+	var cahnged = false
 
-    return radi.component({
-      name: 'radi-router',
-      view: new Function(fn),
-      state: {
-        // _radi_no_debug: true,
-        location: window.location.hash.substr(1) || '/',
-        params: {},
-        last: null,
-        active: null,
-      },
-      actions: {
+	console.log(curr, Object.keys(current.routes), current.routes)
 
-        onMount() {
-					// this.updateMixin()
-          window.onhashchange = this.hashChange
-          this.hashChange()
-        },
+	for (var i = 0; i < crg.length; i++) {
+		if (crg[i][0].test(curr)) {
+			ld = new Route(curr, crg[i], current.routes, cr[i])
+			cahnged = true
+			break
+		}
+	}
 
-        hashChange() {
-					this.last = this.location
-          this.location = window.location.hash.substr(1) || '/'
-          var a = getRoute(this.location)
-					this.params = a.params || {}
-					this.updateMixin()
-					this.active = a.key || ''
-          // console.log('[radi-router] Route change', a, this.location)
-        },
+	lr = curr
+	return (!cahnged) ? {key: '$error'} : ld
+}
 
-				updateMixin() {
-					mix.params = this.params
-					mix.active = this.active
-					mix.last = this.last
-					mix.location = this.location
-				},
+// TODO:
+//   Add support for guards ( beforeEach, afterEach )
+//   Pass params, query attributes to childs
+const Router = component({
+	view(comp) {
+		return r('div',
+				{},
+				'cool: ',
+				l(comp, 'active')
+					.process(active => r('div', {},
+						r('h3', {}, 'active:'),
+						comp.inject(current.routes[active]),
+					)
+			),
+			...comp.children
+		)
+	},
+  state: {
+    // _radi_no_debug: true,
+    location: window.location.hash.substr(1) || '/',
+    params: {},
+    last: null,
+    active: null,
+    cmp: null,
+  },
+  actions: {
 
-      }
-    })
-  };
-};
+		inject(Rte) {
+			if (typeof Rte === 'function') {
+				// Route is component
+				if (Rte.isComponent && Rte.isComponent())
+					return new Rte([])
 
-exports.default = router;
+				// Route is plain function
+				return Rte
+			}
+			// Route is plain text/object
+			return Rte
+		},
+
+    onMount(state) {
+      window.onhashchange = () => this.hashChange(state)
+      this.hashChange(state)
+    },
+
+    hashChange(state) {
+			state.last = state.location
+      state.location = window.location.hash.substr(1) || '/'
+      var a = getRoute(state.location)
+			state.params = a.params || {}
+			state.active = a.key || ''
+      console.log('[radi-router] Route change', a, state.location)
+    },
+
+  },
+})
+
+// TODO: Currently does nothing
+const Link = component({
+	view({ children }) {
+		return r('a', {}, ...children)
+	},
+})
+
+// Pass routes to initiate things
+export default routes => {
+	const before = routes.beforeEach
+	const after = routes.afterEach
+
+	return current = {
+		config: {
+			errors: {
+				404: r('div', {}, 'Error 404'),
+			},
+			before,
+			after,
+		},
+		routes: routes.routes,
+		Link,
+		Router,
+	}
+}
