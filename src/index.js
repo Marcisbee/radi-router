@@ -181,6 +181,10 @@ const Router = component({
   actions: {
 
 		inject(Rte) {
+			// Route not found
+			if (typeof Rte === 'undefined')
+				return current.config.errors[404]
+
 			if (typeof Rte === 'function') {
 				// Route is component
 				if (Rte.isComponent && Rte.isComponent())
