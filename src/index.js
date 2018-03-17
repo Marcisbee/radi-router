@@ -63,7 +63,7 @@ const getRoute = (curr) => {
 }
 
 // TODO:
-//   Figure out why components are not dynamic when rendered with l.process
+//   Figure out why components are not dynamic when rendered inside Router
 //   Add support for guards ( beforeEach, afterEach )
 //   Pass params, query attributes to childs
 const Router = component({
@@ -74,6 +74,7 @@ const Router = component({
 				l(comp, 'active')
 					.process(active => r('div', {},
 						r('h3', {}, 'active:'),
+						// new current.routes['/'](comp).setProps({})
 						comp.inject(current.routes[active]),
 					)
 			),
@@ -98,7 +99,7 @@ const Router = component({
 			if (typeof Rte === 'function') {
 				// Route is component
 				if (Rte.isComponent && Rte.isComponent())
-					return new Rte([])
+					return r(Rte)
 
 				// Route is plain function
 				return Rte
