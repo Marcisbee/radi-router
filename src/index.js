@@ -74,9 +74,8 @@ const Router = component({
 				l(comp, 'active')
 					.process(active => r('div', {},
 						r('h3', {}, 'active:'),
-						// new current.routes['/'](comp).setProps({})
 						comp.inject(current.routes[active]),
-					)
+					),
 			),
 			...comp.children
 		)
@@ -140,7 +139,8 @@ export default routes => {
 	return current = {
 		config: {
 			errors: {
-				404: r('div', {}, 'Error 404'),
+				404: r('div', {}, 'Error 404: Not Found'),
+				403: r('div', {}, 'Error 403: Forbidden'),
 			},
 			before,
 			after,
