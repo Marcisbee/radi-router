@@ -1,5 +1,5 @@
 /** @jsx r **/
-const { r, l, component } = require('../../radi').default
+const { r, l, mount, component } = require('../../radi').default
 let current = {}
 
 export const version = '0.2.0'
@@ -48,8 +48,6 @@ const getRoute = (curr) => {
 	if (!crg) crg = parseAllRoutes(cr)
 	var cahnged = false
 
-	console.log(curr, Object.keys(current.routes), current.routes)
-
 	for (var i = 0; i < crg.length; i++) {
 		if (crg[i][0].test(curr)) {
 			ld = new Route(curr, crg[i], current.routes, cr[i])
@@ -62,21 +60,25 @@ const getRoute = (curr) => {
 	return (!cahnged) ? {key: '$error'} : ld
 }
 
+
 // TODO:
 //   Figure out why components are not dynamic when rendered inside Router
 //   Add support for guards ( beforeEach, afterEach )
 //   Pass params, query attributes to childs
 const Router = component({
 	view(comp) {
-		return r('div',
-				{},
-				'cool: ',
-				l(comp, 'active')
-					.process(active => r('div', {},
-						r('h3', {}, 'active:'),
-						comp.inject(current.routes[active]),
-					),
-			),
+		return r('div', {},
+			// 'cool: ',
+			// l(comp, 'active')
+			// 	.process(active => r('div', {},
+			// 			r('h3', {}, 'active: ', active),
+			// 			r('hr'),
+			// 		),
+			// 	),
+			// TODO: Temporary solution
+			l(comp, 'active')
+				.process(active => comp.inject(comp)),
+			r('div', {id: 'radi-router-placer'}),
 			...comp.children
 		)
 	},
@@ -86,23 +88,55 @@ const Router = component({
     params: {},
     last: null,
     active: null,
-    cmp: null,
   },
   actions: {
 
-		inject(Rte) {
-			// Route not found
-			if (typeof Rte === 'undefined')
-				return current.config.errors[404]
+		inject({active, last}) {
+			// Fire beforeEach event in routes
+			const Rte = (current.before && !current.before(last, active))
+				? 403
+				: current.routes[active]
+
+			// TODO: Temporary solution while .process makes components static
+			window.requestAnimationFrame(() => {
+				const dom = document.getElementById('radi-router-placer')
+				if (dom) {
+					// Delete old component
+					if (window.routermount) {
+						window.routermount.destroy()
+						window.routermount = null
+					}
+					dom.parentNode.replaceChild(dom.cloneNode(false), dom);
+				}
+			})
+
+			// Fire afterEach event in routes
+			if (current.after) current.after(last, active)
+
+			// Route not found or errored out
+			if (/^(undefined|number)$/.test(typeof Rte))
+				return current.config.errors[Rte || 404]
 
 			if (typeof Rte === 'function') {
 				// Route is component
-				if (Rte.isComponent && Rte.isComponent())
-					return r(Rte)
+				if (Rte.isComponent && Rte.isComponent()) {
+
+					// TODO: Temporary solution while .process makes components static
+					window.requestAnimationFrame(() => {
+						const dom = document.getElementById('radi-router-placer')
+						if (dom) {
+							// Mount new component
+							window.routermount = mount(r(Rte), dom)
+						}
+					})
+					return []
+					// return r(Rte)
+				}
 
 				// Route is plain function
 				return Rte
 			}
+
 			// Route is plain text/object
 			return Rte
 		},
@@ -113,7 +147,7 @@ const Router = component({
     },
 
     hashChange(state) {
-			state.last = state.location
+			state.last = state.active
       state.location = window.location.hash.substr(1) || '/'
       var a = getRoute(state.location)
 			state.params = a.params || {}
@@ -142,9 +176,9 @@ export default routes => {
 				404: r('div', {}, 'Error 404: Not Found'),
 				403: r('div', {}, 'Error 403: Forbidden'),
 			},
-			before,
-			after,
 		},
+		before,
+		after,
 		routes: routes.routes,
 		Link,
 		Router,
