@@ -57,28 +57,24 @@ const getRoute = (curr) => {
 	}
 
 	lr = curr
-	return (!cahnged) ? {key: '$error'} : ld
+	return (!cahnged) ? {key: null} : ld
 }
 
 
 // TODO:
-//   Figure out why components are not dynamic when rendered inside Router
-//   Add support for guards ( beforeEach, afterEach )
 //   Pass params, query attributes to childs
 const Router = component({
 	view(comp) {
 		return r('div', {},
 			// 'cool: ',
-			// l(comp, 'active')
-			// 	.process(active => r('div', {},
-			// 			r('h3', {}, 'active: ', active),
-			// 			r('hr'),
-			// 		),
-			// 	),
-			// TODO: Temporary solution
 			l(comp, 'active')
-				.process(active => comp.inject(comp)),
-			r('div', {id: 'radi-router-placer'}),
+				.process(active => r('div', {},
+						r('h3', {}, 'active: ', active),
+						r('hr'),
+					),
+				),
+			l(comp, 'active')
+				.process(() => comp.inject(comp)),
 			...comp.children
 		)
 	},
@@ -91,47 +87,24 @@ const Router = component({
   },
   actions: {
 
+		// Triggers when route is chaned
 		inject({active, last}) {
 			// Fire beforeEach event in routes
 			const Rte = (current.before && !current.before(last, active))
 				? 403
-				: current.routes[active]
-
-			// TODO: Temporary solution while .process makes components static
-			window.requestAnimationFrame(() => {
-				const dom = document.getElementById('radi-router-placer')
-				if (dom) {
-					// Delete old component
-					if (window.routermount) {
-						window.routermount.destroy()
-						window.routermount = null
-					}
-					dom.parentNode.replaceChild(dom.cloneNode(false), dom);
-				}
-			})
+				: (current.routes[active] || 404)
 
 			// Fire afterEach event in routes
 			if (current.after) current.after(last, active)
 
 			// Route not found or errored out
-			if (/^(undefined|number)$/.test(typeof Rte))
-				return current.config.errors[Rte || 404]
+			if (typeof Rte === 'undefined' || typeof Rte === 'number' || !Rte)
+				return current.config.errors[Rte || 404]()
 
 			if (typeof Rte === 'function') {
 				// Route is component
-				if (Rte.isComponent && Rte.isComponent()) {
-
-					// TODO: Temporary solution while .process makes components static
-					window.requestAnimationFrame(() => {
-						const dom = document.getElementById('radi-router-placer')
-						if (dom) {
-							// Mount new component
-							window.routermount = mount(r(Rte), dom)
-						}
-					})
-					return []
-					// return r(Rte)
-				}
+				if (Rte.isComponent && Rte.isComponent())
+					return r(Rte)
 
 				// Route is plain function
 				return Rte
@@ -173,8 +146,8 @@ export default routes => {
 	return current = {
 		config: {
 			errors: {
-				404: r('div', {}, 'Error 404: Not Found'),
-				403: r('div', {}, 'Error 403: Forbidden'),
+				404: () => r('div', {}, 'Error 404: Not Found'),
+				403: () => r('div', {}, 'Error 403: Forbidden'),
 			},
 		},
 		before,
