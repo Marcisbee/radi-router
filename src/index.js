@@ -103,14 +103,20 @@ const Link = component({
 	},
 })
 
+const destructComponent = (comp, ...args) => {
+	if (!comp) return 404;
+	if (typeof comp.before === 'function' && !comp.before(...args)) return 403;
+	return comp.component || 404
+}
+
 const Router = component({
 	actions: {
 		// Triggers when route is chaned
 		inject({active, last}) {
 			// Fire beforeEach event in routes
-			const Rte = (current.before && !current.before(last, active))
+			let Rte = (current.before && !current.before(last, active))
 				? 403
-				: (current.routes[active] || 404)
+				: destructComponent(current.routes[active], last, active)
 
 			// Fire afterEach event in routes
 			if (current.after) current.after(last, active)
