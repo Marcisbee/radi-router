@@ -69,6 +69,7 @@ const getRoute = (curr) => {
 
 
 const RouterHead = component({
+	name: 'HeadlessRouter',
   state: {
     location: window.location.hash.substr(1) || '/',
     params: {},
@@ -96,10 +97,23 @@ const RouterHead = component({
   },
 })
 
-// TODO: Currently does nothing
 const Link = component({
-	view({ children }) {
-		return r('a', {}, () => r('div', {}, ...children))
+	name: 'RouterLink',
+	props: {
+		to: '/',
+		active: 'active',
+	},
+	view(comp) {
+		return r('a', {
+			href: l(comp, 'to').process(url => '#'.concat(url)),
+			class: l(comp, 'to')
+				.process(to => (
+					l(comp.$router, 'active')
+						.process(active => (
+							active === to ? 'active' : ''
+					))
+				)),
+		}, ...comp.children);
 	},
 })
 
@@ -110,6 +124,7 @@ const destructComponent = (comp, ...args) => {
 }
 
 const Router = component({
+	name: 'Router',
 	actions: {
 		// Triggers when route is chaned
 		inject({active, last}) {
@@ -139,10 +154,9 @@ const Router = component({
 		},
 	},
 	view(comp) {
-		const $router = comp.$router
 		return r('div', {},
-			l($router, 'active')
-				.process(() => comp.inject($router)),
+			l(comp.$router, 'active')
+				.process(() => comp.inject(comp.$router)),
 			...comp.children
 		)
 	},
