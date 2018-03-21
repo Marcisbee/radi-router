@@ -1,5 +1,5 @@
 /** @jsx r **/
-const { r, l, mount, component } = require('../../radi').default
+const { r, l, mount, headless, addComms, component } = require('../../radi').default
 let current = {}
 
 export const version = '0.2.0'
@@ -61,32 +61,46 @@ const getRoute = (curr) => {
 }
 
 
-// TODO:
-//   Pass params, query attributes to childs
 const Router = component({
-	view(comp) {
-		return r('div', {},
-			// 'cool: ',
-			l(comp, 'active')
-				.process(active => r('div', {},
-						r('h3', {}, 'active: ', active),
-						r('hr'),
-					),
-				),
-			l(comp, 'active')
-				.process(() => comp.inject(comp)),
-			...comp.children
-		)
-	},
   state: {
-    // _radi_no_debug: true,
     location: window.location.hash.substr(1) || '/',
     params: {},
+    query: {},
     last: null,
     active: null,
   },
   actions: {
 
+    onMount(state) {
+			console.log('Headless router mounted')
+      window.onhashchange = () => this.hashChange(state)
+      this.hashChange(state)
+    },
+
+    hashChange(state) {
+			state.last = state.active
+      state.location = window.location.hash.substr(1) || '/'
+      var a = getRoute(state.location)
+			state.params = a.params || {}
+			state.active = a.key || ''
+      console.log('[radi-router] Route change', a, state.location)
+    },
+
+  },
+})
+
+// TODO: Currently does nothing
+const Link = component({
+	view({ children }) {
+		return r('a', {}, () => r('div', {}, ...children))
+	},
+})
+
+const RouterView = component({
+	actions: {
+		onMount(state) {
+			console.log('Router view mounted', state)
+		},
 		// Triggers when route is chaned
 		inject({active, last}) {
 			// Fire beforeEach event in routes
@@ -113,28 +127,14 @@ const Router = component({
 			// Route is plain text/object
 			return Rte
 		},
-
-    onMount(state) {
-      window.onhashchange = () => this.hashChange(state)
-      this.hashChange(state)
-    },
-
-    hashChange(state) {
-			state.last = state.active
-      state.location = window.location.hash.substr(1) || '/'
-      var a = getRoute(state.location)
-			state.params = a.params || {}
-			state.active = a.key || ''
-      console.log('[radi-router] Route change', a, state.location)
-    },
-
-  },
-})
-
-// TODO: Currently does nothing
-const Link = component({
-	view({ children }) {
-		return r('a', {}, ...children)
+	},
+	view(comp) {
+		const $router = comp.$router
+		return r('div', {},
+			l($router, 'active')
+				.process(() => comp.inject($router)),
+			...comp.children
+		)
 	},
 })
 
@@ -143,7 +143,7 @@ export default routes => {
 	const before = routes.beforeEach
 	const after = routes.afterEach
 
-	return current = {
+	current = {
 		config: {
 			errors: {
 				404: () => r('div', {}, 'Error 404: Not Found'),
@@ -154,6 +154,11 @@ export default routes => {
 		after,
 		routes: routes.routes,
 		Link,
-		Router,
+		RouterView,
 	}
+
+	// Initiates router component
+	headless('router', Router);
+
+	return current
 }
