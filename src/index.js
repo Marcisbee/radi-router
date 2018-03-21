@@ -18,7 +18,7 @@ function parseRoute(route) {
 			end.push(parts[i])
 		}
 	}
-	return [new RegExp('^/' + end.join('/') + '(?:\/(?=$))?$', 'i'), p]
+	return [new RegExp('^/' + end.join('/') + '(?:[\/])?(?:[?&].*)?$', 'i'), p]
 }
 
 function parseAllRoutes(arr) {
@@ -31,9 +31,16 @@ function parseAllRoutes(arr) {
 
 class Route {
 	constructor(curr, match, routes, key) {
+		const query = curr.split(/[\?\&]/)
+			.slice(1)
+			.map(query => query.split('='))
+			.reduce((acc, key) => Object.assign(acc, {
+				[key[0]]: key[1],
+			}), {})
 		var m = curr.match(match[0])
 		this.path = curr
 		this.key = key
+		this.query = query
 		this.params = {}
 		for (var i = 0; i < match[1].length; i++) {
 			this.params[match[1][i]] = m[i + 1]
@@ -61,7 +68,7 @@ const getRoute = (curr) => {
 }
 
 
-const Router = component({
+const RouterHead = component({
   state: {
     location: window.location.hash.substr(1) || '/',
     params: {},
@@ -72,7 +79,6 @@ const Router = component({
   actions: {
 
     onMount(state) {
-			console.log('Headless router mounted')
       window.onhashchange = () => this.hashChange(state)
       this.hashChange(state)
     },
@@ -82,6 +88,7 @@ const Router = component({
       state.location = window.location.hash.substr(1) || '/'
       var a = getRoute(state.location)
 			state.params = a.params || {}
+			state.query = a.query || {}
 			state.active = a.key || ''
       console.log('[radi-router] Route change', a, state.location)
     },
@@ -96,11 +103,8 @@ const Link = component({
 	},
 })
 
-const RouterView = component({
+const Router = component({
 	actions: {
-		onMount(state) {
-			console.log('Router view mounted', state)
-		},
 		// Triggers when route is chaned
 		inject({active, last}) {
 			// Fire beforeEach event in routes
@@ -154,11 +158,11 @@ export default routes => {
 		after,
 		routes: routes.routes,
 		Link,
-		RouterView,
+		Router,
 	}
 
 	// Initiates router component
-	headless('router', Router);
+	headless('router', RouterHead);
 
 	return current
 }
