@@ -53,7 +53,7 @@ const guard = (before, comp, active, last, resolve, reject, deep) => {
   return before(active, last, act => {
     if (typeof act === 'undefined' || act === true) {
       if (typeof deep === 'function') {
-        guard(deep, comp, active, last, resolve, reject, null);
+        return guard(deep, comp, active, last, resolve, reject, null);
       } else {
         resolve({ default: comp });
       }
