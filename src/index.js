@@ -122,6 +122,30 @@ const renderError = number => {
 	return current.config.errors[number]()
 }
 
+const guard = (before, comp, active, last, resolve, deep) => {
+	return before(active, last, act => {
+		if (typeof act === 'undefined' || act === true) {
+			if (typeof deep === 'function') {
+				guard(
+					deep,
+					comp,
+					active,
+					last,
+					resolve,
+					null,
+				);
+			} else {
+				resolve({ default: comp });
+			}
+		} else {
+			resolve({ default: renderError(403) });
+		}
+
+		// Fire afterEach event in routes
+		if (current.after) current.after(active, last);
+	})
+}
+
 const Router = component({
 	name: 'Router',
 	actions: {
@@ -132,8 +156,6 @@ const Router = component({
 				? RouteComponent.component
 				: RouteComponent;
 
-			console.log(WillRender);
-
 			// Route not found or predefined error
 			if (typeof WillRender === 'undefined'
 				|| typeof WillRender === 'number'
@@ -142,19 +164,30 @@ const Router = component({
 
 			// Check if has any guards to check
 			if (typeof current.before === 'function'
-				|| typeof WillRender.before === 'function') {
-				return () => new Promise((resolveGlobal, rejectGlobal) => {
+				|| typeof RouteComponent.before === 'function') {
+				return () => new Promise((resolve, rejectGlobal) => {
 
-					if (typeof current.before === 'function')
-					// TODO: parse local guard
-						current.before(active, last, act => {
-							if (typeof act === 'undefined' || act === true)
-								return resolveGlobal({ default: WillRender });
-							return resolveGlobal({ default: renderError(403) });
-						})
-
-					// Fire afterEach event in routes
-					if (current.after) current.after(active, last);
+					// Global guard
+					if (typeof current.before === 'function') {
+						guard(
+							current.before,
+							WillRender,
+							active,
+							last,
+							resolve,
+							RouteComponent.before,
+						);
+					} else
+					if (typeof RouteComponent.before === 'function') {
+						guard(
+							RouteComponent.before,
+							WillRender,
+							active,
+							last,
+							resolve,
+							null,
+						);
+					}
 				})
 			}
 
