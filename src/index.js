@@ -6,9 +6,10 @@ export const version = '0.2.0'
 var radi
 
 const COLON = ':'.charCodeAt(0)
+const SLASH = '/'.charCodeAt(0)
 var cr, crg, lr, ld
 
-function parseRoute(route) {
+const parseRoute = route => {
 	var parts = route.split('/'), end = [], p = []
 	for (var i = 0; i < parts.length; i++) {
 		if (COLON === parts[i].charCodeAt(0)) {
@@ -21,12 +22,68 @@ function parseRoute(route) {
 	return [new RegExp('^/' + end.join('/') + '(?:[\/])?(?:[?&].*)?$', 'i'), p]
 }
 
-function parseAllRoutes(arr) {
+const parseAllRoutes = arr => {
 	var len = arr.length, ret = new Array(len)
 	for (var i = len - 1; i >= 0; i--) {
 		ret[i] = parseRoute(arr[i])
 	}
 	return ret
+}
+
+const renderError = number => {
+	return current.config.errors[number]()
+}
+
+const writeUrl = url => {
+	window.location.hash = url;
+	return true;
+}
+
+const guard = (before, comp, active, last, resolve, reject, deep) => {
+	return before(active, last, act => {
+		if (typeof act === 'undefined' || act === true) {
+			if (typeof deep === 'function') {
+				guard(
+					deep,
+					comp,
+					active,
+					last,
+					resolve,
+					reject,
+					null,
+				);
+			} else {
+				resolve({ default: comp });
+			}
+		} else
+		if (typeof act === 'string' && act.charCodeAt(0) === SLASH) {
+			writeUrl(act);
+			return reject();
+		} else {
+			resolve({ default: renderError(403) });
+		}
+
+		// Fire afterEach event in routes
+		if (current.after) current.after(active, last);
+	})
+}
+
+const getRoute = (curr) => {
+	if (lr === curr) return ld
+	if (!cr) cr = Object.keys(current.routes)
+	if (!crg) crg = parseAllRoutes(cr)
+	var cahnged = false
+
+	for (var i = 0; i < crg.length; i++) {
+		if (crg[i][0].test(curr)) {
+			ld = new Route(curr, crg[i], current.routes, cr[i])
+			cahnged = true
+			break
+		}
+	}
+
+	lr = curr
+	return (!cahnged) ? {key: null} : ld
 }
 
 class Route {
@@ -47,24 +104,6 @@ class Route {
 			this.params[match[1][i]] = m[i + 1]
 		}
 	}
-}
-
-const getRoute = (curr) => {
-	if (lr === curr) return ld
-	if (!cr) cr = Object.keys(current.routes)
-	if (!crg) crg = parseAllRoutes(cr)
-	var cahnged = false
-
-	for (var i = 0; i < crg.length; i++) {
-		if (crg[i][0].test(curr)) {
-			ld = new Route(curr, crg[i], current.routes, cr[i])
-			cahnged = true
-			break
-		}
-	}
-
-	lr = curr
-	return (!cahnged) ? {key: null} : ld
 }
 
 
@@ -118,34 +157,6 @@ const Link = component({
 	},
 })
 
-const renderError = number => {
-	return current.config.errors[number]()
-}
-
-const guard = (before, comp, active, last, resolve, deep) => {
-	return before(active, last, act => {
-		if (typeof act === 'undefined' || act === true) {
-			if (typeof deep === 'function') {
-				guard(
-					deep,
-					comp,
-					active,
-					last,
-					resolve,
-					null,
-				);
-			} else {
-				resolve({ default: comp });
-			}
-		} else {
-			resolve({ default: renderError(403) });
-		}
-
-		// Fire afterEach event in routes
-		if (current.after) current.after(active, last);
-	})
-}
-
 const Router = component({
 	name: 'Router',
 	actions: {
@@ -165,7 +176,7 @@ const Router = component({
 			// Check if has any guards to check
 			if (typeof current.before === 'function'
 				|| typeof RouteComponent.before === 'function') {
-				return () => new Promise((resolve, rejectGlobal) => {
+				return () => new Promise((resolve, reject) => {
 
 					// Global guard
 					if (typeof current.before === 'function') {
@@ -175,6 +186,7 @@ const Router = component({
 							active,
 							last,
 							resolve,
+							reject,
 							RouteComponent.before,
 						);
 					} else
@@ -185,6 +197,7 @@ const Router = component({
 							active,
 							last,
 							resolve,
+							reject,
 							null,
 						);
 					}
@@ -228,6 +241,7 @@ export default routes => {
 		before,
 		after,
 		routes: routes.routes,
+		write: writeUrl,
 		Link,
 		Router,
 	}
