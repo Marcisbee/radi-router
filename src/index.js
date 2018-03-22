@@ -174,11 +174,16 @@ const Router = component({
 
       // Route not found or predefined error
       if (
-        typeof WillRender === 'undefined' ||
-        typeof WillRender === 'number' ||
-        !WillRender
+        (typeof WillRender === 'undefined' ||
+          typeof WillRender === 'number' ||
+          !WillRender) &&
+        typeof RouteComponent === 'undefined'
       )
         return renderError(WillRender || 404);
+
+			// Plain redirect
+			if (typeof RouteComponent.redirect === 'string')
+	      return writeUrl(RouteComponent.redirect);
 
       // Check if has any guards to check
       if (
