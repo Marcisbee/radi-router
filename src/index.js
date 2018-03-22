@@ -105,7 +105,8 @@ const Link = component({
 	},
 	view(comp) {
 		return r('a', {
-			href: l(comp, 'to').process(url => '#'.concat(url)),
+			href: l(comp, 'to')
+				.process(url => '#'.concat(url)),
 			class: l(comp, 'to')
 				.process(to => (
 					l(comp.$router, 'active')
@@ -117,10 +118,8 @@ const Link = component({
 	},
 })
 
-const destructComponent = (comp, ...args) => {
-	if (!comp) return 404;
-	if (typeof comp.before === 'function' && !comp.before(...args)) return 403;
-	return comp.component || 404
+const renderError = number => {
+	return current.config.errors[number]()
 }
 
 const Router = component({
@@ -128,29 +127,48 @@ const Router = component({
 	actions: {
 		// Triggers when route is chaned
 		inject({active, last}) {
-			// Fire beforeEach event in routes
-			let Rte = (current.before && !current.before(last, active))
-				? 403
-				: destructComponent(current.routes[active], last, active)
+			const RouteComponent = current.routes[active];
+			const WillRender = typeof RouteComponent === 'object'
+				? RouteComponent.component
+				: RouteComponent;
 
-			// Fire afterEach event in routes
-			if (current.after) current.after(last, active)
+			console.log(WillRender);
 
-			// Route not found or errored out
-			if (typeof Rte === 'undefined' || typeof Rte === 'number' || !Rte)
-				return current.config.errors[Rte || 404]()
+			// Route not found or predefined error
+			if (typeof WillRender === 'undefined'
+				|| typeof WillRender === 'number'
+				|| !WillRender)
+				return renderError(WillRender || 404)
 
-			if (typeof Rte === 'function') {
+			// Check if has any guards to check
+			if (typeof current.before === 'function'
+				|| typeof WillRender.before === 'function') {
+				return () => new Promise((resolveGlobal, rejectGlobal) => {
+
+					if (typeof current.before === 'function')
+					// TODO: parse local guard
+						current.before(active, last, act => {
+							if (typeof act === 'undefined' || act === true)
+								return resolveGlobal({ default: WillRender });
+							return resolveGlobal({ default: renderError(403) });
+						})
+
+					// Fire afterEach event in routes
+					if (current.after) current.after(active, last);
+				})
+			}
+
+			if (typeof WillRender === 'function') {
 				// Route is component
-				if (Rte.isComponent && Rte.isComponent())
-					return r(Rte)
+				if (WillRender.isComponent && WillRender.isComponent())
+					return r(WillRender)
 
 				// Route is plain function
-				return Rte
+				return WillRender
 			}
 
 			// Route is plain text/object
-			return Rte
+			return WillRender
 		},
 	},
 	view(comp) {
