@@ -41,11 +41,11 @@ class Route {
 		this.path = curr
 		this.key = key
 		this.query = query
-		this.params = {}
+		this.cmp = routes[key]
+		this.params = this.cmp.data || {}
 		for (var i = 0; i < match[1].length; i++) {
 			this.params[match[1][i]] = m[i + 1]
 		}
-		this.cmp = routes[key]
 	}
 }
 
