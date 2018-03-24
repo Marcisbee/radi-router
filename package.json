@@ -1,8 +1,9 @@
 {
   "name": "radi-router",
-  "version": "0.1.8",
+  "version": "0.2.2",
   "main": "dist/radi-router.js",
-  "module": "src/index.js",
+  "module": "dist/radi-router.es.js",
+  "jsnext:main": "dist/radi-router.es.js",
   "license": "MIT",
   "repository": "radi-js/radi-router",
   "author": "Marcis Bergmanis <marcisbergmanis@gmail.com>",
@@ -13,14 +14,21 @@
     "router"
   ],
   "scripts": {
-    "build": "npm run bundle && npm run minify",
-    "bundle": "rollup -i src/index.js -o dist/radi-router.js -m -f umd -n radi-router",
-    "minify": "uglifyjs dist/radi-router.js -o dist/radi-router.min.js -mc pure_funcs=Object.defineProperty --source-map includeSources,url=radi-router.js.map",
+    "prod": "npm run build",
+    "build": "npm run roll && npm run min",
+    "roll": "npm run roll-es && npm run roll-js",
+    "roll-es": "rollup -c -n radi-router -f es -i src/index.js -o dist/radi-router.es.js -m",
+    "roll-js": "rollup -c -n radi-router -f umd -i src/index.js -o dist/radi-router.js -m",
+    "min": "npm run min-js && npm run min-es",
+    "min-js": "google-closure-compiler-js dist/radi-router.js > dist/radi-router.min.js",
+    "min-es": "squash dist/radi-router.es.js -o dist/radi-router.es.min.js",
     "test": "nyc mocha",
     "report": "nyc report"
   },
   "devDependencies": {
+    "butternut": "^0.4.6",
     "chai": "^4.1.2",
+    "google-closure-compiler-js": "^20180204.0.0",
     "jsdom": "^11.5.1",
     "mocha": "^4.1.0",
     "nyc": "^11.4.1"
