@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.2.2';
+const version = '0.2.3';
 
 // Pass routes to initiate things
 var index = ({
@@ -147,7 +147,9 @@ var index = ({
     name: 'RouterLink',
     props: {
       to: '/',
-      active: 'active'
+      active: 'active',
+      class: '',
+      title: null,
     },
     view(comp) {
       return r(
@@ -155,10 +157,12 @@ var index = ({
         {
           href: l(comp, 'to').process(url => '#'.concat(url)),
           class: l(comp, 'to').process(to =>
-            l(comp.$router, 'active').process(
-              active => (active === to ? 'active' : '')
+            l(comp.$router, 'active').process(active =>
+              l(comp, 'class').process(cls =>
+                ((active === to ? 'active' : '') + ' ' + cls))
             )
-          )
+          ),
+          title: l(comp, 'title')
         },
         ...comp.children
       );
