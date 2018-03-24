@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.2.3';
+const version = '0.2.4';
 
 // Pass routes to initiate things
 var index = ({
@@ -149,6 +149,7 @@ var index = ({
       to: '/',
       active: 'active',
       class: '',
+      id: null,
       title: null,
     },
     view(comp) {
@@ -162,7 +163,8 @@ var index = ({
                 ((active === to ? 'active' : '') + ' ' + cls))
             )
           ),
-          title: l(comp, 'title')
+          id: l(comp, 'id'),
+          title: l(comp, 'title'),
         },
         ...comp.children
       );

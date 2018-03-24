@@ -1,4 +1,4 @@
-export const version = '0.2.3';
+export const version = '0.2.4';
 
 // Pass routes to initiate things
 export default ({
@@ -143,6 +143,7 @@ export default ({
       to: '/',
       active: 'active',
       class: '',
+      id: null,
       title: null,
     },
     view(comp) {
@@ -156,7 +157,8 @@ export default ({
                 ((active === to ? 'active' : '') + ' ' + cls))
             )
           ),
-          title: l(comp, 'title')
+          id: l(comp, 'id'),
+          title: l(comp, 'title'),
         },
         ...comp.children
       );
