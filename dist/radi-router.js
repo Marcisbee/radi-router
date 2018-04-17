@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.2.4';
+const version = '0.3.1';
 
 // Pass routes to initiate things
 var index = ({
@@ -12,7 +12,7 @@ var index = ({
     l,
     mount,
     headless,
-    component,
+    Component,
   }, routes) => {
   let current = {};
 
@@ -116,139 +116,151 @@ var index = ({
     }
   }
 
-  const RouterHead = component({
-    name: 'HeadlessRouter',
-    state: {
-      location: window.location.hash.substr(1) || '/',
-      params: {},
-      query: {},
-      last: null,
-      active: null
-    },
-    actions: {
-      onMount(state) {
-        window.onhashchange = () => this.hashChange(state);
-        this.hashChange(state);
-      },
+  class RouterHead extends Component {
+    state() {
+      return {
+        location: window.location.hash.substr(1) || '/',
+        params: {},
+        query: {},
+        last: null,
+        active: null
+      };
+    }
 
-      hashChange(state) {
-        state.last = state.active;
-        state.location = window.location.hash.substr(1) || '/';
-        var a = getRoute(state.location);
-        state.params = a.params || {};
-        state.query = a.query || {};
-        state.active = a.key || '';
-        console.log('[radi-router] Route change', a, state.location);
+    on() {
+      return {
+        mount() {
+          window.onhashchange = () => this.setState(this.hashChange());
+          this.setState(this.hashChange());
+        }
       }
     }
-  });
 
-  const Link = component({
-    name: 'RouterLink',
-    props: {
-      to: '/',
-      active: 'active',
-      class: '',
-      id: null,
-      title: null,
-    },
-    view(comp) {
+    hashChange() {
+      var loc = window.location.hash.substr(1) || '/';
+      var a = getRoute(loc);
+
+      console.log('[radi-router] Route change', a, this.state.location);
+
+      return {
+        last: this.state.active,
+        location: loc,
+        params: a.params || {},
+        query: a.query || {},
+        active: a.key || '',
+      }
+    }
+  }
+
+  class Link extends Component {
+    state() {
+      return {
+        to: '/',
+        active: 'active',
+        class: '',
+        id: null,
+        title: null,
+      };
+    }
+    view() {
       return r(
         'a',
         {
-          href: l(comp, 'to').process(url => '#'.concat(url)),
-          class: l(comp, 'to').process(to =>
-            l(comp.$router, 'active').process(active =>
-              l(comp, 'class').process(cls =>
+          href: l(this, 'to').process(url => '#'.concat(url)),
+          class: l(this, 'to').process(to =>
+            l(this.$router, 'active').process(active =>
+              l(this, 'class').process(cls =>
                 ((active === to ? 'active' : '') + ' ' + cls))
             )
           ),
-          id: l(comp, 'id'),
-          title: l(comp, 'title'),
+          id: l(this, 'id'),
+          title: l(this, 'title'),
         },
-        ...comp.children
+        ...this.children
       );
     }
-  });
+  }
 
-  const Router = component({
-    name: 'Router',
-    actions: {
-      // Triggers when route is chaned
-      inject({ active, last }) {
-        const RouteComponent = current.routes[active];
-        const WillRender =
-          typeof RouteComponent === 'object'
-            ? RouteComponent.component
-            : RouteComponent;
+  class Router extends Component {
+    // Triggers when route is changed
+    inject({ active, last }) {
+      const RouteComponent = current.routes[active];
+      const WillRender =
+        typeof RouteComponent === 'object'
+          ? RouteComponent.component
+          : RouteComponent;
 
-        // Route not found or predefined error
-        if (
-          (typeof WillRender === 'undefined' ||
-            typeof WillRender === 'number' ||
-            !WillRender) &&
-          typeof RouteComponent === 'undefined'
-        )
-          return renderError(WillRender || 404);
+      // Route not found or predefined error
+      if (
+        (typeof WillRender === 'undefined' ||
+          typeof WillRender === 'number' ||
+          !WillRender) &&
+        typeof RouteComponent === 'undefined'
+      )
+        return renderError(WillRender || 404);
 
-  			// Plain redirect
-  			if (typeof RouteComponent.redirect === 'string')
-  	      return writeUrl(RouteComponent.redirect);
+      // Plain redirect
+      if (typeof RouteComponent.redirect === 'string')
+        return writeUrl(RouteComponent.redirect);
 
-        // Check if has any guards to check
-        if (
-          typeof current.before === 'function' ||
-          typeof RouteComponent.before === 'function'
-        ) {
-          return () =>
-            new Promise((resolve, reject) => {
-              // Global guard
-              if (typeof current.before === 'function') {
-                guard(
-                  current.before,
-                  WillRender,
-                  active,
-                  last,
-                  resolve,
-                  reject,
-                  RouteComponent.before
-                );
-              } else if (typeof RouteComponent.before === 'function') {
-                guard(
-                  RouteComponent.before,
-                  WillRender,
-                  active,
-                  last,
-                  resolve,
-                  reject,
-                  null
-                );
-              }
-            });
-        }
+      // Check if has any guards to check
+      if (
+        typeof current.before === 'function' ||
+        typeof RouteComponent.before === 'function'
+      ) {
+        return () =>
+          new Promise((resolve, reject) => {
+            // Global guard
+            if (typeof current.before === 'function') {
+              guard(
+                current.before,
+                WillRender,
+                active,
+                last,
+                resolve,
+                reject,
+                RouteComponent.before
+              );
+            } else if (typeof RouteComponent.before === 'function') {
+              guard(
+                RouteComponent.before,
+                WillRender,
+                active,
+                last,
+                resolve,
+                reject,
+                null
+              );
+            }
+          });
+      }
 
-        if (typeof WillRender === 'function') {
-          // Route is component
-          if (WillRender.isComponent && WillRender.isComponent())
-            return r(WillRender);
+      if (typeof WillRender === 'function') {
+        // Route is component
+        if (WillRender.isComponent && WillRender.isComponent())
+          return r(WillRender);
 
-          // Route is plain function
-          return WillRender;
-        }
-
-        // Route is plain text/object
+        // Route is plain function
         return WillRender;
       }
-    },
-    view(comp) {
-      return r(
-        'div',
-        {},
-        l(comp.$router, 'active').process(() => comp.inject(comp.$router)),
-        ...comp.children
-      );
+
+      // Route is plain text/object
+      return WillRender;
     }
-  });
+
+    view() {
+      return [
+        l(this.$router, 'active').process(() => this.inject(this.$router.state)),
+        ...this.children,
+      ];
+      // return r(
+      //   'template',
+      //   {},
+      //   l(this.$router, 'active').process(() => this.inject(this.$router.state)),
+      //   ...this.children,
+      // );
+    }
+  }
 
   const before = routes.beforeEach;
   const after = routes.afterEach;
