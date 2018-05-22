@@ -1,4 +1,4 @@
-const version = '0.3.1';
+const version = '0.3.2';
 
 // Pass routes to initiate things
 var index = ({
@@ -65,6 +65,21 @@ var index = ({
       // Fire afterEach event in routes
       if (current.after) current.after(active, last);
     });
+  };
+
+  const extractChildren = routes => {
+    let children = routes;
+    for (let child in routes) {
+      if (routes.hasOwnProperty(child) && routes[child].children) {
+        let extracted = extractChildren(routes[child].children);
+        for (var nn in extracted) {
+          if (extracted.hasOwnProperty(nn)) {
+            children[child + nn] = extracted[nn];
+          }
+        }
+      }
+    }
+    return children;
   };
 
   const getRoute = curr => {
@@ -134,7 +149,9 @@ var index = ({
       var loc = window.location.hash.substr(1) || '/';
       var a = getRoute(loc);
 
-      console.log('[radi-router] Route change', a, this.state.location);
+      // console.log('[radi-router] Route change', a, this.state.location);
+
+      window.scrollTo(0, 0);
 
       return {
         last: this.state.active,
@@ -151,6 +168,7 @@ var index = ({
       return {
         to: '/',
         active: 'active',
+        core: false,
         class: '',
         id: null,
         title: null,
@@ -163,8 +181,11 @@ var index = ({
           href: l(this, 'to').process(url => '#'.concat(url)),
           class: l(this, 'to').process(to =>
             l(this.$router, 'active').process(active =>
-              l(this, 'class').process(cls =>
-                ((active === to ? 'active' : '') + ' ' + cls))
+              l(this, 'class').process(cls => ([
+                (active === to || (this.state.core && new RegExp('^' + to).test(active)))
+                  && this.state.active,
+                cls
+              ]))
             )
           ),
           id: l(this, 'id'),
@@ -243,16 +264,16 @@ var index = ({
     }
 
     view() {
-      return [
-        l(this.$router, 'active').process(() => this.inject(this.$router.state)),
-        ...this.children,
-      ];
-      // return r(
-      //   'template',
-      //   {},
-      //   l(this.$router, 'active').process(() => this.inject(this.$router.state)),
+      // return [
+      //   l(this.$router, 'active').process(() => r('div', {}, this.inject(this.$router.state))),
       //   ...this.children,
-      // );
+      // ];
+      return r(
+        'template',
+        {},
+        l(this.$router, 'active').process(() => this.inject(this.$router.state)),
+        this.children,
+      );
     }
   }
 
@@ -268,7 +289,7 @@ var index = ({
     },
     before,
     after,
-    routes: routes.routes,
+    routes: extractChildren(routes.routes),
     write: writeUrl,
     Link,
     Router
