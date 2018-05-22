@@ -1,6 +1,6 @@
 {
   "name": "radi-router",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "main": "dist/radi-router.js",
   "module": "src/index.js",
   "jsnext:main": "dist/radi-router.es.js",

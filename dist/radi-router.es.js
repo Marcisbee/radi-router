@@ -1,4 +1,4 @@
-const version = '0.3.3';
+const version = '0.3.4';
 
 // Pass routes to initiate things
 var index = ({
@@ -53,13 +53,13 @@ var index = ({
         if (typeof deep === 'function') {
           return guard(deep, comp, active, last, resolve, reject, null, _router);
         } else {
-          resolve({ default: comp });
+          resolve(comp);
         }
       } else if (typeof act === 'string' && act.charCodeAt(0) === SLASH) {
         writeUrl(act);
         return reject();
       } else {
-        resolve({ default: renderError(403) });
+        resolve(renderError(403));
       }
 
       // Fire afterEach event in routes
@@ -230,7 +230,7 @@ var index = ({
                 middleResolve(resolve),
                 middleResolve(reject),
                 RouteComponent.before,
-                this.$router
+                this
               );
             } else if (typeof RouteComponent.before === 'function') {
               guard(
@@ -241,7 +241,7 @@ var index = ({
                 middleResolve(resolve),
                 middleResolve(reject),
                 null,
-                this.$router
+                this
               );
             }
           });
