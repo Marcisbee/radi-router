@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.3.4';
+const version = '0.3.5';
 
 // Pass routes to initiate things
 var index = ({
@@ -172,6 +172,10 @@ var index = ({
     }
 
     resolve(pulse) {
+      if (typeof pulse === 'function' && pulse.isComponent) {
+        return this.resolve(r(pulse))
+      }
+
       if (typeof pulse === 'function') {
         return this.resolve(pulse())
       }
