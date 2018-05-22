@@ -1,4 +1,4 @@
-export const version = '0.3.4';
+export const version = '0.3.5';
 
 // Pass routes to initiate things
 export default ({
@@ -166,6 +166,10 @@ export default ({
     }
 
     resolve(pulse) {
+      if (typeof pulse === 'function' && pulse.isComponent) {
+        return this.resolve(r(pulse))
+      }
+
       if (typeof pulse === 'function') {
         return this.resolve(pulse())
       }
