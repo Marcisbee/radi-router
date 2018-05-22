@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.3.2';
+const version = '0.3.3';
 
 // Pass routes to initiate things
 var index = ({
@@ -53,11 +53,11 @@ var index = ({
     return true;
   };
 
-  const guard = (before, comp, active, last, resolve, reject, deep) => {
-    return before(active, last, act => {
+  const guard = (before, comp, active, last, resolve, reject, deep, _router) => {
+    return before.call(_router, active, last, act => {
       if (typeof act === 'undefined' || act === true) {
         if (typeof deep === 'function') {
-          return guard(deep, comp, active, last, resolve, reject, null);
+          return guard(deep, comp, active, last, resolve, reject, null, _router);
         } else {
           resolve({ default: comp });
         }
@@ -138,7 +138,8 @@ var index = ({
         params: {},
         query: {},
         last: null,
-        active: null
+        active: null,
+        activeComponent: null
       };
     }
 
@@ -159,6 +160,8 @@ var index = ({
 
       window.scrollTo(0, 0);
 
+      this.resolve(this.inject(a.key || '', this.state.active));
+
       return {
         last: this.state.active,
         location: loc,
@@ -166,6 +169,101 @@ var index = ({
         query: a.query || {},
         active: a.key || '',
       }
+    }
+
+    resolve(pulse) {
+      if (typeof pulse === 'function') {
+        return this.resolve(pulse())
+      }
+
+      if (pulse instanceof Promise) {
+        return pulse.then(() => {}).catch(console.warn)
+      }
+
+      this.setState({
+        activeComponent: pulse,
+      });
+    }
+
+    // Triggers when route is changed
+    inject(active, last) {
+      // const { active, last } = this.state
+      const RouteComponent = current.routes[active];
+      const WillRender =
+        typeof RouteComponent === 'object'
+          ? RouteComponent.component
+          : RouteComponent;
+
+      // Route not found or predefined error
+      if (
+        (typeof WillRender === 'undefined' ||
+          typeof WillRender === 'number' ||
+          !WillRender) &&
+        typeof RouteComponent === 'undefined'
+      )
+        return renderError(WillRender || 404);
+
+      // Plain redirect
+      if (typeof RouteComponent.redirect === 'string')
+        return writeUrl(RouteComponent.redirect);
+
+      // Check if has any guards to check
+      if (
+        typeof current.before === 'function' ||
+        typeof RouteComponent.before === 'function'
+      ) {
+        return () =>
+          new Promise((resolve, reject) => {
+            const middleResolve = type => comp => {
+              if (comp && comp.default) {
+                this.setState({
+                  activeComponent: comp.default,
+                });
+              } else {
+                this.setState({
+                  activeComponent: comp,
+                });
+              }
+              type(comp);
+            };
+            // Global guard
+            if (typeof current.before === 'function') {
+              guard(
+                current.before,
+                WillRender,
+                active,
+                last,
+                middleResolve(resolve),
+                middleResolve(reject),
+                RouteComponent.before,
+                this.$router
+              );
+            } else if (typeof RouteComponent.before === 'function') {
+              guard(
+                RouteComponent.before,
+                WillRender,
+                active,
+                last,
+                middleResolve(resolve),
+                middleResolve(reject),
+                null,
+                this.$router
+              );
+            }
+          });
+      }
+
+      if (typeof WillRender === 'function') {
+        // Route is component
+        if (WillRender.isComponent && WillRender.isComponent())
+          return r(WillRender);
+
+        // Route is plain function
+        return WillRender;
+      }
+
+      // Route is plain text/object
+      return WillRender;
     }
   }
 
@@ -203,71 +301,6 @@ var index = ({
   }
 
   class Router extends Component {
-    // Triggers when route is changed
-    inject({ active, last }) {
-      const RouteComponent = current.routes[active];
-      const WillRender =
-        typeof RouteComponent === 'object'
-          ? RouteComponent.component
-          : RouteComponent;
-
-      // Route not found or predefined error
-      if (
-        (typeof WillRender === 'undefined' ||
-          typeof WillRender === 'number' ||
-          !WillRender) &&
-        typeof RouteComponent === 'undefined'
-      )
-        return renderError(WillRender || 404);
-
-      // Plain redirect
-      if (typeof RouteComponent.redirect === 'string')
-        return writeUrl(RouteComponent.redirect);
-
-      // Check if has any guards to check
-      if (
-        typeof current.before === 'function' ||
-        typeof RouteComponent.before === 'function'
-      ) {
-        return () =>
-          new Promise((resolve, reject) => {
-            // Global guard
-            if (typeof current.before === 'function') {
-              guard(
-                current.before,
-                WillRender,
-                active,
-                last,
-                resolve,
-                reject,
-                RouteComponent.before
-              );
-            } else if (typeof RouteComponent.before === 'function') {
-              guard(
-                RouteComponent.before,
-                WillRender,
-                active,
-                last,
-                resolve,
-                reject,
-                null
-              );
-            }
-          });
-      }
-
-      if (typeof WillRender === 'function') {
-        // Route is component
-        if (WillRender.isComponent && WillRender.isComponent())
-          return r(WillRender);
-
-        // Route is plain function
-        return WillRender;
-      }
-
-      // Route is plain text/object
-      return WillRender;
-    }
 
     view() {
       // return [
@@ -277,7 +310,7 @@ var index = ({
       return r(
         'template',
         {},
-        l(this.$router, 'active').process(() => this.inject(this.$router.state)),
+        l(this.$router, 'activeComponent').process(comp => comp),
         this.children,
       );
     }
