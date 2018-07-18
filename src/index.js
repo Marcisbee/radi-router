@@ -154,7 +154,9 @@ export default ({
 
       window.scrollTo(0, 0);
 
-      this.resolve(this.inject(a.key || '', this.state.active))
+      // this.resolve(this.inject(a.key || '', this.state.active))
+
+      this.trigger('changed', a.key || '', this.state.active);
 
       return {
         last: this.state.active,
@@ -165,104 +167,6 @@ export default ({
       }
     }
 
-    resolve(pulse) {
-      if (typeof pulse === 'function' && pulse.isComponent) {
-        return this.resolve(r(pulse))
-      }
-
-      if (typeof pulse === 'function') {
-        return this.resolve(pulse())
-      }
-
-      if (pulse instanceof Promise) {
-        return pulse.then(() => {}).catch(console.warn)
-      }
-
-      this.setState({
-        activeComponent: pulse,
-      })
-    }
-
-    // Triggers when route is changed
-    inject(active, last) {
-      // const { active, last } = this.state
-      const RouteComponent = current.routes[active];
-      const WillRender =
-        typeof RouteComponent === 'object'
-          ? RouteComponent.component
-          : RouteComponent;
-
-      // Route not found or predefined error
-      if (
-        (typeof WillRender === 'undefined' ||
-          typeof WillRender === 'number' ||
-          !WillRender) &&
-        typeof RouteComponent === 'undefined'
-      )
-        return renderError(WillRender || 404);
-
-      // Plain redirect
-      if (typeof RouteComponent.redirect === 'string')
-        return writeUrl(RouteComponent.redirect);
-
-      // Check if has any guards to check
-      if (
-        typeof current.before === 'function' ||
-        typeof RouteComponent.before === 'function'
-      ) {
-        return () =>
-          new Promise((resolve, reject) => {
-            const middleResolve = type => comp => {
-              if (comp && comp.default) {
-                this.setState({
-                  activeComponent: comp.default,
-                })
-              } else {
-                this.setState({
-                  activeComponent: comp,
-                })
-              }
-              type(comp)
-            }
-            // Global guard
-            if (typeof current.before === 'function') {
-              guard(
-                current.before,
-                WillRender,
-                active,
-                last,
-                middleResolve(resolve),
-                middleResolve(reject),
-                RouteComponent.before,
-                this
-              );
-            } else if (typeof RouteComponent.before === 'function') {
-              guard(
-                RouteComponent.before,
-                WillRender,
-                active,
-                last,
-                middleResolve(resolve),
-                middleResolve(reject),
-                null,
-                this
-              );
-            }
-          });
-      }
-
-      if (typeof WillRender === 'function') {
-        // Route is component
-        if (WillRender.isComponent && WillRender.isComponent())
-          return r(WillRender);
-
-        // Route is plain function
-        return WillRender;
-      }
-
-      // Route is plain text/object
-      return WillRender;
-    }
   }
 
   class Link extends Component {
@@ -300,17 +204,121 @@ export default ({
 
   class Router extends Component {
 
+    state() {
+      return {
+        active: null,
+      }
+    }
+
+    on() {
+      return {
+        mount() {
+          this.setState({active: this.$router.state.active});
+          this.$router.when('changed', (active, last) => {
+            this.setState({active});
+          });
+        }
+      }
+    }
+
     view() {
       // return [
       //   l(this.$router, 'active').process(() => r('div', {}, this.inject(this.$router.state))),
       //   ...this.children,
       // ];
-      return r(
-        'template',
-        {},
-        l(this.$router, 'activeComponent').process(comp => comp),
+      return [
+        l(this, 'active').process(comp => this.extractComponent(comp)),
         this.children,
-      );
+      ]
+      // return r(
+      //   'template',
+      //   {},
+      //   l(this, 'active').process(comp => this.extractComponent(comp)),
+      //   this.children,
+      // );
+      // return [
+      //   l(this.$router, 'activeComponent').process(comp => comp),
+      //   this.children,
+      // ]
+      // return r(
+      //   'template',
+      //   {},
+      //   l(this.$router, 'activeComponent').process(comp => comp),
+      //   this.children,
+      // );
+    }
+
+    // Triggers when route is changed
+    extractComponent(active, last) {
+      // Route is not yet ready
+      // For the future, maybe show cached page or default screen
+      // or loading placeholder if time between this and next request
+      // is too long
+      if (active === null && typeof last === 'undefined') return;
+
+      // const { active, last } = this.state
+      const RouteComponent = current.routes[active];
+      const WillRender =
+        typeof RouteComponent === 'object'
+          ? RouteComponent.component
+          : RouteComponent;
+
+      // Route not found or predefined error
+      if (
+        (typeof WillRender === 'undefined' ||
+          typeof WillRender === 'number' ||
+          !WillRender) &&
+        typeof RouteComponent === 'undefined'
+      )
+        return renderError(WillRender || 404);
+
+      // Plain redirect
+      if (typeof RouteComponent.redirect === 'string')
+        return writeUrl(RouteComponent.redirect);
+
+      // Check if has any guards to check
+      const guards = [
+        current.before || null,
+        RouteComponent.before || null,
+      ].filter(guard => typeof guard === 'function');
+
+      if (guards.length > 0) {
+        const checkGuard = (resolve, reject) => {
+          return guards.pop().call(this, active, last, act => {
+            // Render
+            if (typeof act === 'undefined' || act === true) {
+              if (guards.length > 0) {
+                return checkGuard(resolve, reject);
+              } else {
+                return resolve(WillRender);
+              }
+            }
+
+            // Redirect
+            // if (typeof act === 'string' && act.charCodeAt(0) === SLASH) {
+            //   reject();
+            //   return writeUrl(act);
+            // }
+
+            // Restricted
+            return resolve(renderError(403));
+          });
+        };
+
+        return () => new Promise(checkGuard);
+      }
+
+      if (typeof WillRender === 'function') {
+        // Route is component
+        if (WillRender.isComponent && WillRender.isComponent())
+          return r(WillRender);
+
+        // Route is plain function
+        return WillRender;
+      }
+
+      // Route is plain text/object
+      return WillRender;
     }
   }
 
