@@ -1,9 +1,3 @@
-(function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-	typeof define === 'function' && define.amd ? define(['exports'], factory) :
-	(factory((global['radi-router'] = {})));
-}(this, (function (exports) { 'use strict';
-
 const version = '0.3.5';
 
 // Pass routes to initiate things
@@ -332,10 +326,6 @@ var index = ({
   return current;
 };
 
-exports.version = version;
-exports.default = index;
-
-Object.defineProperty(exports, '__esModule', { value: true });
-
-})));
-//# sourceMappingURL=radi-router.js.map
+export default index;
+export { version };
+//# sourceMappingURL=radi-router.es.js.map
