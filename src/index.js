@@ -1,4 +1,4 @@
-export const version = '0.3.5';
+export const version = '0.3.23';
 
 // Pass routes to initiate things
 export default ({
@@ -284,7 +284,13 @@ export default ({
 
       if (guards.length > 0) {
         const checkGuard = (resolve, reject) => {
-          return guards.pop().call(this, active, last, act => {
+          const popped = guards.pop();
+
+          if (typeof popped !== 'function') {
+            return resolve(WillRender);
+          }
+
+          return popped.call(this, active, last, act => {
             // Render
             if (typeof act === 'undefined' || act === true) {
               if (guards.length > 0) {
