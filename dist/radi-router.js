@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.3.23';
+const version = '0.3.24';
 
 // Pass routes to initiate things
 var index = ({
@@ -119,17 +119,26 @@ var index = ({
         query: {},
         last: null,
         active: null,
-        activeComponent: null
+        activeComponent: null,
+        current: {
+          tags: [],
+          meta: {},
+        },
       };
     }
 
     on() {
       return {
         mount() {
-          window.onhashchange = () => this.setState(this.hashChange());
+          window.onhashchange = () => (this.setState(this.hashChange()), this.chain());
           this.setState(this.hashChange());
+          this.chain();
         }
       }
+    }
+
+    chain() {
+      this.trigger('changed', this.state.active || '', this.state.last);
     }
 
     hashChange() {
@@ -142,15 +151,25 @@ var index = ({
 
       // this.resolve(this.inject(a.key || '', this.state.active))
 
-      this.trigger('changed', a.key || '', this.state.active);
-
       return {
         last: this.state.active,
         location: loc,
         params: a.params || {},
         query: a.query || {},
         active: a.key || '',
+        current: {
+          tags: a.cmp.tags || [],
+          meta: a.cmp.meta || {},
+        },
       }
+    }
+
+    hasTag(...tag) {
+      return tag.reduce((acc, t) => acc || (this.state.current.tags.indexOf(t) >= 0), false);
+    }
+
+    getMeta() {
+      return this.state.current.meta || {};
     }
 
   }
