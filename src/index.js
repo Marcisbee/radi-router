@@ -47,26 +47,6 @@ export default ({
     return true;
   };
 
-  const guard = (before, comp, active, last, resolve, reject, deep, _router) => {
-    return before.call(_router, active, last, act => {
-      if (typeof act === 'undefined' || act === true) {
-        if (typeof deep === 'function') {
-          return guard(deep, comp, active, last, resolve, reject, null, _router);
-        } else {
-          resolve(comp);
-        }
-      } else if (typeof act === 'string' && act.charCodeAt(0) === SLASH) {
-        writeUrl(act);
-        return reject();
-      } else {
-        resolve(renderError(403));
-      }
-
-      // Fire afterEach event in routes
-      if (current.after) current.after(active, last);
-    });
-  };
-
   const extractChildren = routes => {
     let children = routes;
     for (let child in routes) {
