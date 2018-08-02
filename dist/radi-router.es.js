@@ -1,4 +1,4 @@
-const version = '0.3.25';
+const version = '0.3.26';
 
 // Pass routes to initiate things
 var index = ({
@@ -105,6 +105,55 @@ var index = ({
     }
   }
 
+  const combineTitle = (...args) => (
+    args.reduce((a, v) => (v ? a.concat(v) : a), [])
+  );
+
+  class Title extends Component {
+    state() {
+      return {
+        prefix: null,
+        text: null,
+        suffix: null,
+        seperator: ' | ',
+      };
+    }
+
+    setPrefix(prefix) {
+      return this.setState({prefix});
+    }
+
+    setSuffix(suffix) {
+      return this.setState({suffix});
+    }
+
+    set(text) {
+      return this.setState({text});
+    }
+
+    setSeperator(seperator) {
+      return this.setState({seperator});
+    }
+
+    on() {
+      return {
+        update() {
+          let titleConfig = this.$router.getTitle() || {};
+
+          let title = combineTitle(
+            (routes.title && routes.title.prefix) || this.state.prefix,
+            titleConfig.text || (routes.title && routes.title.text) || this.state.text,
+            (routes.title && routes.title.suffix) || this.state.suffix
+          ).join(this.state.seperator);
+
+          if (title && document.title !== title) {
+            document.title = title;
+          }
+        },
+      }
+    }
+  }
+
   class RouterHead extends Component {
     state() {
       return {
@@ -115,6 +164,7 @@ var index = ({
         active: null,
         activeComponent: null,
         current: {
+          title: null,
           tags: [],
           meta: {},
         },
@@ -145,6 +195,8 @@ var index = ({
 
       // this.resolve(this.inject(a.key || '', this.state.active))
 
+      let title = a.cmp && a.cmp.title;
+
       return {
         last: this.state.active,
         location: loc,
@@ -152,6 +204,9 @@ var index = ({
         query: a.query || {},
         active: a.key || '',
         current: {
+          title: (typeof title === 'object') ? title : {
+            text: title,
+          } || null,
           tags: (a.cmp && a.cmp.tags) || [],
           meta: (a.cmp && a.cmp.meta) || {},
         },
@@ -164,6 +219,12 @@ var index = ({
 
     getMeta() {
       return this.state.current.meta || {};
+    }
+
+    getTitle() {
+      let title = this.state.current.title;
+
+      return title;
     }
 
   }
@@ -365,6 +426,9 @@ var index = ({
 
   // Initiates router component
   headless('router', RouterHead);
+
+  // Initiates title component
+  headless('title', Title);
 
   return current;
 };
