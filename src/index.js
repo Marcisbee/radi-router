@@ -1,4 +1,4 @@
-export const version = '0.3.24';
+export const version = '0.3.25';
 
 // Pass routes to initiate things
 export default ({
@@ -299,6 +299,14 @@ export default ({
               }
             }
 
+            if (act) {
+              if (guards.length > 0) {
+                return checkGuard(resolve, reject);
+              } else {
+                return resolve(act);
+              }
+            }
+
             // Redirect
             // if (typeof act === 'string' && act.charCodeAt(0) === SLASH) {
             //   reject();
@@ -330,19 +338,29 @@ export default ({
   const before = routes.beforeEach;
   const after = routes.afterEach;
 
+  const getError = (code, fallback) => {
+    let error = routes.errors && routes.errors[code];
+
+    if (error) {
+      return typeof error === 'function' ? error : () => error;
+    }
+
+    return fallback;
+  };
+
   current = {
     config: {
       errors: {
-        404: () => r('div', {}, 'Error 404: Not Found'),
-        403: () => r('div', {}, 'Error 403: Forbidden')
-      }
+        404: getError(404, () => r('div', {}, 'Error 404: Not Found')),
+        403: getError(403, () => r('div', {}, 'Error 403: Forbidden')),
+      },
     },
     before,
     after,
     routes: extractChildren(routes.routes),
     write: writeUrl,
     Link,
-    Router
+    Router,
   };
 
   // Initiates router component

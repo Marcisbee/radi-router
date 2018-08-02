@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.3.24';
+const version = '0.3.25';
 
 // Pass routes to initiate things
 var index = ({
@@ -103,7 +103,7 @@ var index = ({
       this.path = curr;
       this.key = key;
       this.query = query;
-      this.cmp = routes[key];
+      this.cmp = routes[key] || {};
       this.params = this.cmp.data || {};
       for (var i = 0; i < match[1].length; i++) {
         this.params[match[1][i]] = m[i + 1];
@@ -158,8 +158,8 @@ var index = ({
         query: a.query || {},
         active: a.key || '',
         current: {
-          tags: a.cmp.tags || [],
-          meta: a.cmp.meta || {},
+          tags: (a.cmp && a.cmp.tags) || [],
+          meta: (a.cmp && a.cmp.meta) || {},
         },
       }
     }
@@ -305,6 +305,14 @@ var index = ({
               }
             }
 
+            if (act) {
+              if (guards.length > 0) {
+                return checkGuard(resolve, reject);
+              } else {
+                return resolve(act);
+              }
+            }
+
             // Redirect
             // if (typeof act === 'string' && act.charCodeAt(0) === SLASH) {
             //   reject();
@@ -336,19 +344,29 @@ var index = ({
   const before = routes.beforeEach;
   const after = routes.afterEach;
 
+  const getError = (code, fallback) => {
+    let error = routes.errors && routes.errors[code];
+
+    if (error) {
+      return typeof error === 'function' ? error : () => error;
+    }
+
+    return fallback;
+  };
+
   current = {
     config: {
       errors: {
-        404: () => r('div', {}, 'Error 404: Not Found'),
-        403: () => r('div', {}, 'Error 403: Forbidden')
-      }
+        404: getError(404, () => r('div', {}, 'Error 404: Not Found')),
+        403: getError(403, () => r('div', {}, 'Error 403: Forbidden')),
+      },
     },
     before,
     after,
     routes: extractChildren(routes.routes),
     write: writeUrl,
     Link,
-    Router
+    Router,
   };
 
   // Initiates router component
