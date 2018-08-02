@@ -4,7 +4,7 @@
 	(factory((global['radi-router'] = {})));
 }(this, (function (exports) { 'use strict';
 
-const version = '0.3.26';
+const version = '0.3.27';
 
 // Pass routes to initiate things
 var index = ({
@@ -146,14 +146,22 @@ var index = ({
         update() {
           let titleConfig = this.$router.getTitle() || {};
 
+          let pefix = (routes.title && routes.title.prefix) || this.state.prefix;
+          let text = titleConfig.text || (routes.title && routes.title.text) || this.state.text;
+          let suffix = (routes.title && routes.title.suffix) || this.state.suffix;
+
           let title = combineTitle(
-            (routes.title && routes.title.prefix) || this.state.prefix,
-            titleConfig.text || (routes.title && routes.title.text) || this.state.text,
-            (routes.title && routes.title.suffix) || this.state.suffix
+            pefix,
+            text,
+            suffix
           ).join(this.state.seperator);
 
           if (title && document.title !== title) {
             document.title = title;
+          }
+
+          if (this.state.text && text !== this.state.text) {
+            this.set(null);
           }
         },
       }
