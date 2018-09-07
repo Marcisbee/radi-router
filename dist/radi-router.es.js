@@ -1,4 +1,4 @@
-const version = '0.3.27';
+const version = '0.4.0';
 
 // Pass routes to initiate things
 var index = ({
@@ -110,8 +110,9 @@ var index = ({
   );
 
   class Title extends Component {
-    state() {
-      return {
+    constructor(...args) {
+      super(...args);
+      this.state = {
         prefix: null,
         text: null,
         suffix: null,
@@ -135,36 +136,33 @@ var index = ({
       return this.setState({seperator});
     }
 
-    on() {
-      return {
-        update() {
-          let titleConfig = this.$router.getTitle() || {};
+    onUpdate() {
+      let titleConfig = this.$router.getTitle() || {};
 
-          let pefix = (routes.title && routes.title.prefix) || this.state.prefix;
-          let text = titleConfig.text || (routes.title && routes.title.text) || this.state.text;
-          let suffix = (routes.title && routes.title.suffix) || this.state.suffix;
+      let pefix = (routes.title && routes.title.prefix) || this.state.prefix;
+      let text = titleConfig.text || (routes.title && routes.title.text) || this.state.text;
+      let suffix = (routes.title && routes.title.suffix) || this.state.suffix;
 
-          let title = combineTitle(
-            pefix,
-            text,
-            suffix
-          ).join(this.state.seperator);
+      let title = combineTitle(
+        pefix,
+        text,
+        suffix
+      ).join(this.state.seperator);
 
-          if (title && document.title !== title) {
-            document.title = title;
-          }
+      if (title && document.title !== title) {
+        document.title = title;
+      }
 
-          if (this.state.text && text !== this.state.text) {
-            this.set(null);
-          }
-        },
+      if (this.state.text && text !== this.state.text) {
+        this.set(null);
       }
     }
   }
 
   class RouterHead extends Component {
-    state() {
-      return {
+    constructor(...args) {
+      super(...args);
+      this.state = {
         location: window.location.hash.substr(1) || '/',
         params: {},
         query: {},
@@ -179,14 +177,10 @@ var index = ({
       };
     }
 
-    on() {
-      return {
-        mount() {
-          window.onhashchange = () => (this.setState(this.hashChange()), this.chain());
-          this.setState(this.hashChange());
-          this.chain();
-        }
-      }
+    onMount() {
+      window.onhashchange = () => (this.setState(this.hashChange()), this.chain());
+      this.setState(this.hashChange());
+      this.chain();
     }
 
     chain() {
@@ -238,8 +232,9 @@ var index = ({
   }
 
   class Link extends Component {
-    state() {
-      return {
+    constructor(...args) {
+      super(...args);
+      this.state = {
         to: '/',
         active: 'active',
         core: false,
@@ -272,21 +267,18 @@ var index = ({
 
   class Router extends Component {
 
-    state() {
-      return {
+    constructor(...args) {
+      super(...args);
+      this.state = {
         active: null,
-      }
+      };
     }
 
-    on() {
-      return {
-        mount() {
-          this.setState({active: this.$router.state.active});
-          this.$router.when('changed', (active, last) => {
-            this.setState({active});
-          });
-        }
-      }
+    onMount() {
+      this.setState({active: this.$router.state.active});
+      this.$router.on('changed', (active, last) => {
+        this.setState({active});
+      });
     }
 
     view() {
