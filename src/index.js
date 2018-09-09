@@ -1,4 +1,4 @@
-export const version = '0.4.0';
+export const version = '0.4.1';
 
 // Pass routes to initiate things
 export default ({
@@ -121,19 +121,19 @@ export default ({
     }
 
     setPrefix(prefix) {
-      return this.setState({prefix});
+      return this.setState({prefix}, 'setPrefix');
     }
 
     setSuffix(suffix) {
-      return this.setState({suffix});
+      return this.setState({suffix}, 'setSuffix');
     }
 
     set(text) {
-      return this.setState({text});
+      return this.setState({text}, 'set');
     }
 
     setSeperator(seperator) {
-      return this.setState({seperator});
+      return this.setState({seperator}, 'setSeperator');
     }
 
     onUpdate() {
