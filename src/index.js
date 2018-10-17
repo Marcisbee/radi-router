@@ -3,12 +3,14 @@ export const version = '0.5.0';
 // Pass routes to initiate things
 const RadiRouter = ({
     h,
-    l,
-    patch,
+    Subscribe,
     Service,
     Store,
     customAttribute,
-  }, routes) => {
+  }, routes = []) => {
+  if (!routes) {
+    console.warn('[Radi:Router] Routes should be set as a second parameter');
+  }
   let current = {};
 
   const COLON = ':'.charCodeAt(0);
@@ -65,7 +67,6 @@ const RadiRouter = ({
 
   const getRoute = curr => {
     if (lr === curr) return ld;
-    console.log(current, routes)
     if (!cr) cr = Object.keys(current.routes);
     if (!crg) crg = parseAllRoutes(cr);
     var cahnged = false;
@@ -182,7 +183,17 @@ const RadiRouter = ({
 
   function evalFn(fn) {
     if (typeof fn === 'function') return evalFn(fn());
+    if (typeof fn === 'object' && fn.default) return evalFn(fn.default);
     return fn;
+  }
+
+  function evalPromise(fn, resolve) {
+    const promise = evalFn(fn);
+    if (promise instanceof Promise) {
+      promise.then(data => evalPromise(data, resolve));
+    } else {
+      resolve(promise);
+    }
   }
 
   // Triggers when route is changed
@@ -283,7 +294,9 @@ const RadiRouter = ({
         const evaluated = evalFn(extractComponent(route));
 
         if (evaluated instanceof Promise) {
-          evaluated.then(e => resolve(evalFn(e)));
+          evaluated.then(e => {
+            evalPromise(e, resolve)
+          });
         } else {
           resolve(evaluated);
         }

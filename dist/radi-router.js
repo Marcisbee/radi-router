@@ -9,12 +9,15 @@ var version = '0.5.0';
 // Pass routes to initiate things
 var RadiRouter = function (ref, routes) {
   var h = ref.h;
-  var l = ref.l;
-  var patch = ref.patch;
+  var Subscribe = ref.Subscribe;
   var Service = ref.Service;
   var Store = ref.Store;
   var customAttribute = ref.customAttribute;
+  if ( routes === void 0 ) routes = [];
 
+  if (!routes) {
+    console.warn('[Radi:Router] Routes should be set as a second parameter');
+  }
   var current = {};
 
   var COLON = ':'.charCodeAt(0);
@@ -71,7 +74,6 @@ var RadiRouter = function (ref, routes) {
 
   var getRoute = function (curr) {
     if (lr === curr) { return ld; }
-    console.log(current, routes);
     if (!cr) { cr = Object.keys(current.routes); }
     if (!crg) { crg = parseAllRoutes(cr); }
     var cahnged = false;
@@ -198,7 +200,17 @@ var RadiRouter = function (ref, routes) {
 
   function evalFn(fn) {
     if (typeof fn === 'function') { return evalFn(fn()); }
+    if (typeof fn === 'object' && fn.default) { return evalFn(fn.default); }
     return fn;
+  }
+
+  function evalPromise(fn, resolve) {
+    var promise = evalFn(fn);
+    if (promise instanceof Promise) {
+      promise.then(function (data) { return evalPromise(data, resolve); });
+    } else {
+      resolve(promise);
+    }
   }
 
   // Triggers when route is changed
@@ -304,7 +316,9 @@ var RadiRouter = function (ref, routes) {
         var evaluated = evalFn(extractComponent(route));
 
         if (evaluated instanceof Promise) {
-          evaluated.then(function (e) { return resolve(evalFn(e)); });
+          evaluated.then(function (e) {
+            evalPromise(e, resolve);
+          });
         } else {
           resolve(evaluated);
         }
