@@ -1,6 +1,6 @@
 {
   "name": "radi-router",
-  "version": "0.4.1",
+  "version": "0.5.0-beta.0",
   "main": "dist/radi-router.js",
   "module": "src/index.js",
   "jsnext:main": "dist/radi-router.es.js",
@@ -14,6 +14,7 @@
     "router"
   ],
   "scripts": {
+    "dev": "rollup -c -n radi-router -f umd -i src/index.js -o dist/radi-router.js -m --watch",
     "prod": "npm run build",
     "build": "npm run roll && npm run min",
     "roll": "npm run roll-es && npm run roll-js",
@@ -32,5 +33,9 @@
     "jsdom": "^11.5.1",
     "mocha": "^4.1.0",
     "nyc": "^11.4.1"
+  },
+  "dependencies": {
+    "rollup-plugin-buble": "^0.19.2",
+    "rollup-plugin-node-resolve": "^3.4.0"
   }
 }
