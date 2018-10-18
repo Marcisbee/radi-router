@@ -204,15 +204,6 @@ var RadiRouter = function (ref, routes) {
     return fn;
   }
 
-  function evalPromise(fn, resolve) {
-    var promise = evalFn(fn);
-    if (promise instanceof Promise) {
-      promise.then(function (data) { return evalPromise(data, resolve); });
-    } else {
-      resolve(promise);
-    }
-  }
-
   // Triggers when route is changed
   function extractComponent(active, last) {
     // Route is not yet ready
@@ -316,9 +307,7 @@ var RadiRouter = function (ref, routes) {
         var evaluated = evalFn(extractComponent(route));
 
         if (evaluated instanceof Promise) {
-          evaluated.then(function (e) {
-            evalPromise(e, resolve);
-          });
+          evaluated.then(resolve);
         } else {
           resolve(evaluated);
         }

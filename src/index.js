@@ -187,15 +187,6 @@ const RadiRouter = ({
     return fn;
   }
 
-  function evalPromise(fn, resolve) {
-    const promise = evalFn(fn);
-    if (promise instanceof Promise) {
-      promise.then(data => evalPromise(data, resolve));
-    } else {
-      resolve(promise);
-    }
-  }
-
   // Triggers when route is changed
   function extractComponent(active, last) {
     // Route is not yet ready
@@ -294,9 +285,7 @@ const RadiRouter = ({
         const evaluated = evalFn(extractComponent(route));
 
         if (evaluated instanceof Promise) {
-          evaluated.then(e => {
-            evalPromise(e, resolve)
-          });
+          evaluated.then(resolve);
         } else {
           resolve(evaluated);
         }
