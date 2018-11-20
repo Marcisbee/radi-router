@@ -3,7 +3,7 @@ var version = '0.5.0';
 // Pass routes to initiate things
 var RadiRouter = function (ref, routes) {
   var h = ref.h;
-  var Subscribe = ref.Subscribe;
+  var Event = ref.Event;
   var Service = ref.Service;
   var Store = ref.Store;
   var customAttribute = ref.customAttribute;
@@ -122,7 +122,7 @@ var RadiRouter = function (ref, routes) {
 
   var getHash = function () { return location.hash.substr(1) || '/'; };
 
-  var hashChange = new Subscribe(window).on('hashchange', function (e) { return ({ hash: getHash() }); });
+  var hashChange = new Event(window, 'hashchange', function (e) { return ({ hash: getHash() }); });
 
   // const locationState = new Subscribe(window).on('popstate', e => ({
   //   url: document.location.pathname,
@@ -159,6 +159,8 @@ var RadiRouter = function (ref, routes) {
     var title = a.cmp && a.cmp.title;
     var reHashed = store.route.split('#');
 
+    Service.Title.set(title);
+
     return {
       route: reHashed[0],
       hash: reHashed[1],
@@ -178,7 +180,7 @@ var RadiRouter = function (ref, routes) {
   });
 
   customAttribute('href', function (e, value) {
-    if (value[0] === '#') { return RouterStore(function (ref) {
+    if (value[0] === '#') { return RouterStore.listener(function (ref) {
       var route = ref.route;
 
       return (
@@ -265,7 +267,7 @@ var RadiRouter = function (ref, routes) {
 
           // Restricted
           return resolve(renderError(403));
-        });
+        }, RouterStore.get());
       };
 
       // return h('div', {}, h('await', {src: new Promise(checkGuard)}));
@@ -281,49 +283,37 @@ var RadiRouter = function (ref, routes) {
     var placeholder = ref.placeholder;
     var waitMs = ref.waitMs;
 
-    // const self = this;
-    // this.onMount = (e) => {
-    //
-    //   console.log(e, e.parentElement)
-    //   patch(e.parentElement, RouterStore(({active}) => extractComponent(active)), null, 0, e);
-    // };
-    // return h('router');
+    var ref$1 = RouterStore.state;
+    var route = ref$1.route;
 
-    // return h('router', {}, [
-    //   active,
-    // ]);
-    // return h(new Promise(e => e(RouteComponent.component)));
-    return RouterStore(function (ref) {
-      var active = ref.active;
-      var route = ref.route;
+    var src = new Promise(function (resolve) {
+      var evaluated = evalFn(extractComponent(route));
 
-      var src = new Promise(function (resolve) {
-        var evaluated = evalFn(extractComponent(route));
-
-        if (evaluated instanceof Promise) {
-          evaluated.then(resolve);
-        } else {
-          resolve(evaluated);
-        }
-      });
-      return h('await', { src: src, placeholder: placeholder, waitMs: waitMs });
+      if (evaluated instanceof Promise) {
+        evaluated.then(resolve);
+      } else {
+        resolve(evaluated);
+      }
     });
+
+    return h('await', { src: src, placeholder: placeholder, waitMs: waitMs });
   }
 
   var titleState = new Store({
     prefix: null,
     text: null,
-    suffix: null,
+    suffix: 'Radi.js',
     seperator: ' | ',
   });
 
-  var setPrefix = function (state, prefix) { return ({prefix: prefix}); };
-  var setSuffix = function (state, suffix) { return ({suffix: suffix}); };
-  var setText = function (state, text) { return ({text: text}); };
-  var setSeperator = function (state, seperator) { return ({seperator: seperator}); };
+  var setPrefix = function (state, prefix) { return (Object.assign({}, state, {prefix: prefix})); };
+  var setSuffix = function (state, suffix) { return (Object.assign({}, state, {suffix: suffix})); };
+  var setText = function (state, text) { return (Object.assign({}, state, {text: text})); };
+  var setSeperator = function (state, seperator) { return (Object.assign({}, state, {seperator: seperator})); };
 
   var Title = function Title() {
-    this.state = titleState;
+    this.onUpdate = this.onUpdate.bind(this);
+    titleState.subscribe(this.onUpdate);
   };
 
   Title.prototype.setPrefix = function setPrefix$1 (prefix) {
@@ -342,84 +332,27 @@ var RadiRouter = function (ref, routes) {
     return titleState.dispatch(setSeperator, seperator);
   };
 
-  Title.prototype.onUpdate = function onUpdate () {
-    var titleConfig = this.$router.getTitle() || {};
+  Title.prototype.onUpdate = function onUpdate (state) {
+    var titleConfig = state || {};
 
-    var pefix = (routes.title && routes.title.prefix) || this.state.prefix;
-    var text = titleConfig.text || (routes.title && routes.title.text) || this.state.text;
-    var suffix = (routes.title && routes.title.suffix) || this.state.suffix;
+    var pefix = (routes.title && routes.title.prefix) || titleConfig.prefix;
+    var text = titleConfig.text || (routes.title && routes.title.text) || titleConfig.text;
+    var suffix = (routes.title && routes.title.suffix) || titleConfig.suffix;
 
     var title = combineTitle(
       pefix,
       text,
       suffix
-    ).join(this.state.seperator);
+    ).join(titleConfig.seperator);
 
     if (title && document.title !== title) {
       document.title = title;
     }
 
-    if (this.state.text && text !== this.state.text) {
+    if (titleConfig.text && text !== titleConfig.text) {
       this.set(null);
     }
   };
-
-  // function Link(props) {
-  //   const {
-  //     href = '/',
-  //     active = 'active',
-  //     core = false,
-  //     children,
-  //   } = props;
-
-  //   return (
-  //     h('a',
-  //       {
-  //         ...props,
-  //         href,
-  //         class: [
-  //           (active === to || (this.state.core && new RegExp('^' + to).test(active)))
-  //             && this.state.active
-  //           props.class, active],
-  //       },
-  //       children,
-  //     )
-  //   )
-  // }
-
-  // class Link extends Component {
-  //   constructor(...args) {
-  //     super(...args);
-  //     this.state = {
-  //       to: '/',
-  //       active: 'active',
-  //       core: false,
-  //       class: '',
-  //       id: null,
-  //       title: null,
-  //     };
-  //   }
-  //   view() {
-  //     return r(
-  //       'a',
-  //       {
-  //         href: l(this, 'to').process(url => '#'.concat(url)),
-  //         class: l(this, 'to').process(to =>
-  //           l(this.$router, 'active').process(active =>
-  //             l(this, 'class').process(cls => ([
-  //               (active === to || (this.state.core && new RegExp('^' + to).test(active)))
-  //                 && this.state.active,
-  //               cls
-  //             ]))
-  //           )
-  //         ),
-  //         id: l(this, 'id'),
-  //         title: l(this, 'title'),
-  //       },
-  //       ...this.children
-  //     );
-  //   }
-  // }
 
   var before = routes.beforeEach;
   var after = routes.afterEach;
@@ -445,7 +378,6 @@ var RadiRouter = function (ref, routes) {
     after: after,
     routes: extractChildren(routes.routes),
     write: writeUrl,
-    // Link,
     Router: RouterBody,
   };
 

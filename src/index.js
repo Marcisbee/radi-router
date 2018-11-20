@@ -3,7 +3,7 @@ export const version = '0.5.0';
 // Pass routes to initiate things
 const RadiRouter = ({
     h,
-    Subscribe,
+    Event,
     Service,
     Store,
     customAttribute,
@@ -115,7 +115,7 @@ const RadiRouter = ({
 
   const getHash = () => location.hash.substr(1) || '/';
 
-  const hashChange = new Subscribe(window).on('hashchange', e => ({ hash: getHash() }));
+  const hashChange = new Event(window, 'hashchange', e => ({ hash: getHash() }));
 
   // const locationState = new Subscribe(window).on('popstate', e => ({
   //   url: document.location.pathname,
@@ -146,6 +146,8 @@ const RadiRouter = ({
     let title = a.cmp && a.cmp.title;
     const reHashed = store.route.split('#');
 
+    Service.Title.set(title);
+
     return {
       route: reHashed[0],
       hash: reHashed[1],
@@ -165,7 +167,7 @@ const RadiRouter = ({
   });
 
   customAttribute('href', (e, value) => {
-    if (value[0] === '#') return RouterStore(({route}) => (
+    if (value[0] === '#') return RouterStore.listener(({route}) => (
       '#' + route + value
     ));
 
@@ -255,7 +257,7 @@ const RadiRouter = ({
 
           // Restricted
           return resolve(renderError(403));
-        });
+        }, RouterStore.get());
       };
 
       // return h('div', {}, h('await', {src: new Promise(checkGuard)}));
@@ -268,47 +270,37 @@ const RadiRouter = ({
 
   // Components
   function RouterBody({ placeholder, waitMs }) {
-    // const self = this;
-    // this.onMount = (e) => {
-    //
-    //   console.log(e, e.parentElement)
-    //   patch(e.parentElement, RouterStore(({active}) => extractComponent(active)), null, 0, e);
-    // };
-    // return h('router');
+    const { route } = RouterStore.state;
 
-    // return h('router', {}, [
-    //   active,
-    // ]);
-    // return h(new Promise(e => e(RouteComponent.component)));
-    return RouterStore(({ active, route }) => {
-      const src = new Promise(resolve => {
-        const evaluated = evalFn(extractComponent(route));
+    const src = new Promise(resolve => {
+      const evaluated = evalFn(extractComponent(route));
 
-        if (evaluated instanceof Promise) {
-          evaluated.then(resolve);
-        } else {
-          resolve(evaluated);
-        }
-      });
-      return h('await', { src, placeholder, waitMs });
+      if (evaluated instanceof Promise) {
+        evaluated.then(resolve);
+      } else {
+        resolve(evaluated);
+      }
     });
+
+    return h('await', { src, placeholder, waitMs });
   }
 
   const titleState = new Store({
     prefix: null,
     text: null,
-    suffix: null,
+    suffix: 'Radi.js',
     seperator: ' | ',
   });
 
-  const setPrefix = (state, prefix) => ({prefix});
-  const setSuffix = (state, suffix) => ({suffix});
-  const setText = (state, text) => ({text});
-  const setSeperator = (state, seperator) => ({seperator});
+  const setPrefix = (state, prefix) => ({ ...state, prefix });
+  const setSuffix = (state, suffix) => ({ ...state, suffix });
+  const setText = (state, text) => ({ ...state, text });
+  const setSeperator = (state, seperator) => ({ ...state, seperator });
 
   class Title {
     constructor() {
-      this.state = titleState;
+      this.onUpdate = this.onUpdate.bind(this);
+      titleState.subscribe(this.onUpdate);
     }
 
     setPrefix(prefix) {
@@ -327,85 +319,28 @@ const RadiRouter = ({
       return titleState.dispatch(setSeperator, seperator);
     }
 
-    onUpdate() {
-      let titleConfig = this.$router.getTitle() || {};
+    onUpdate(state) {
+      let titleConfig = state || {};
 
-      let pefix = (routes.title && routes.title.prefix) || this.state.prefix;
-      let text = titleConfig.text || (routes.title && routes.title.text) || this.state.text;
-      let suffix = (routes.title && routes.title.suffix) || this.state.suffix;
+      let pefix = (routes.title && routes.title.prefix) || titleConfig.prefix;
+      let text = titleConfig.text || (routes.title && routes.title.text) || titleConfig.text;
+      let suffix = (routes.title && routes.title.suffix) || titleConfig.suffix;
 
       let title = combineTitle(
         pefix,
         text,
         suffix
-      ).join(this.state.seperator);
+      ).join(titleConfig.seperator);
 
       if (title && document.title !== title) {
         document.title = title;
       }
 
-      if (this.state.text && text !== this.state.text) {
+      if (titleConfig.text && text !== titleConfig.text) {
         this.set(null);
       }
     }
   }
-
-  // function Link(props) {
-  //   const {
-  //     href = '/',
-  //     active = 'active',
-  //     core = false,
-  //     children,
-  //   } = props;
-
-  //   return (
-  //     h('a',
-  //       {
-  //         ...props,
-  //         href,
-  //         class: [
-  //           (active === to || (this.state.core && new RegExp('^' + to).test(active)))
-  //             && this.state.active
-  //           props.class, active],
-  //       },
-  //       children,
-  //     )
-  //   )
-  // }
-
-  // class Link extends Component {
-  //   constructor(...args) {
-  //     super(...args);
-  //     this.state = {
-  //       to: '/',
-  //       active: 'active',
-  //       core: false,
-  //       class: '',
-  //       id: null,
-  //       title: null,
-  //     };
-  //   }
-  //   view() {
-  //     return r(
-  //       'a',
-  //       {
-  //         href: l(this, 'to').process(url => '#'.concat(url)),
-  //         class: l(this, 'to').process(to =>
-  //           l(this.$router, 'active').process(active =>
-  //             l(this, 'class').process(cls => ([
-  //               (active === to || (this.state.core && new RegExp('^' + to).test(active)))
-  //                 && this.state.active,
-  //               cls
-  //             ]))
-  //           )
-  //         ),
-  //         id: l(this, 'id'),
-  //         title: l(this, 'title'),
-  //       },
-  //       ...this.children
-  //     );
-  //   }
-  // }
 
   const before = routes.beforeEach;
   const after = routes.afterEach;
@@ -431,7 +366,6 @@ const RadiRouter = ({
     after,
     routes: extractChildren(routes.routes),
     write: writeUrl,
-    // Link,
     Router: RouterBody,
   };
 
