@@ -114,16 +114,18 @@ const RadiRouter = ({
 
 
   const getHash = () => location.hash.substr(1) || '/';
+  const getPath = () => decodeURI(location.pathname + location.search) || '/';
 
-  const hashChange = new Event(window, 'hashchange', e => ({ hash: getHash() }));
+  const mode = routes.mode === 'hash'
+    ? 'hash'
+    : 'history';
 
-  // const locationState = new Subscribe(window).on('popstate', e => ({
-  //   url: document.location.pathname,
-  //   state: e.state,
-  // }))
+  const routeUpdate = mode === 'hash'
+    ? new Event(window, 'hashchange', e => getHash())(getHash())
+    : new Event(window, 'popstate', e => getPath())(getPath());
 
   const RouterStore = new Store({
-    route: hashChange({ hash: getHash() }).map(({hash}) => hash),
+    route: routeUpdate,
     params: {},
     query: {},
     current: {
@@ -134,7 +136,7 @@ const RadiRouter = ({
     // location: locationState({ url: null, state: null }),
   })
   .map((store, oldStore = {}) => {
-    var loc = window.location.hash.substr(1) || '/';
+    var loc = mode === 'hash' ? getHash() : getPath();
     var a = getRoute(loc) || {};
 
     // console.log('[radi-router] Route change', a);
@@ -167,6 +169,17 @@ const RadiRouter = ({
   });
 
   customAttribute('href', (e, value) => {
+    if (mode === 'history') {
+      e.onclick = (ev) => {
+        ev.preventDefault();
+
+        history.pushState(null, null, value);
+        routeUpdate.dispatch(getPath);
+      };
+
+      return value;
+    }
+
     if (value[0] === '#') return RouterStore.listener(({route}) => (
       '#' + route + value
     ));

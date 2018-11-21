@@ -121,20 +121,18 @@ var RadiRouter = function (ref, routes) {
 
 
   var getHash = function () { return location.hash.substr(1) || '/'; };
+  var getPath = function () { return decodeURI(location.pathname + location.search) || '/'; };
 
-  var hashChange = new Event(window, 'hashchange', function (e) { return ({ hash: getHash() }); });
+  var mode = routes.mode === 'hash'
+    ? 'hash'
+    : 'history';
 
-  // const locationState = new Subscribe(window).on('popstate', e => ({
-  //   url: document.location.pathname,
-  //   state: e.state,
-  // }))
+  var routeUpdate = mode === 'hash'
+    ? new Event(window, 'hashchange', function (e) { return getHash(); })(getHash())
+    : new Event(window, 'popstate', function (e) { return getPath(); })(getPath());
 
   var RouterStore = new Store({
-    route: hashChange({ hash: getHash() }).map(function (ref) {
-      var hash = ref.hash;
-
-      return hash;
-  }),
+    route: routeUpdate,
     params: {},
     query: {},
     current: {
@@ -147,7 +145,7 @@ var RadiRouter = function (ref, routes) {
   .map(function (store, oldStore) {
     if ( oldStore === void 0 ) oldStore = {};
 
-    var loc = window.location.hash.substr(1) || '/';
+    var loc = mode === 'hash' ? getHash() : getPath();
     var a = getRoute(loc) || {};
 
     // console.log('[radi-router] Route change', a);
@@ -180,6 +178,17 @@ var RadiRouter = function (ref, routes) {
   });
 
   customAttribute('href', function (e, value) {
+    if (mode === 'history') {
+      e.onclick = function (ev) {
+        ev.preventDefault();
+
+        history.pushState(null, null, value);
+        routeUpdate.dispatch(getPath);
+      };
+
+      return value;
+    }
+
     if (value[0] === '#') { return RouterStore.listener(function (ref) {
       var route = ref.route;
 
