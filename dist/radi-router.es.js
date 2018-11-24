@@ -3,6 +3,7 @@ var version = '0.5.0';
 // Pass routes to initiate things
 var RadiRouter = function (ref, routes) {
   var h = ref.h;
+  var Await = ref.Await;
   var Event = ref.Event;
   var Service = ref.Service;
   var Store = ref.Store;
@@ -141,7 +142,7 @@ var RadiRouter = function (ref, routes) {
       meta: {},
     },
     // location: locationState({ url: null, state: null }),
-  })
+  }, null)
   .map(function (store, oldStore) {
     if ( oldStore === void 0 ) oldStore = {};
 
@@ -179,12 +180,15 @@ var RadiRouter = function (ref, routes) {
 
   customAttribute('href', function (e, value) {
     if (mode === 'history') {
-      e.onclick = function (ev) {
-        ev.preventDefault();
 
-        history.pushState(null, null, value);
-        routeUpdate.dispatch(getPath);
-      };
+      if (value[0] === '/' && value[1] !== '/') {
+        e.onclick = function (ev) {
+          ev.preventDefault();
+
+          history.pushState(null, null, value);
+          routeUpdate.dispatch(getPath);
+        };
+      }
 
       return value;
     }
@@ -305,7 +309,7 @@ var RadiRouter = function (ref, routes) {
       }
     });
 
-    return h('await', { src: src, placeholder: placeholder, waitMs: waitMs });
+    return h(Await, { src: src, placeholder: placeholder, waitMs: waitMs });
   }
 
   var titleState = new Store({
@@ -313,7 +317,7 @@ var RadiRouter = function (ref, routes) {
     text: null,
     suffix: 'Radi.js',
     seperator: ' | ',
-  });
+  }, null);
 
   var Title = function Title() {
     this.onUpdate = this.onUpdate.bind(this);

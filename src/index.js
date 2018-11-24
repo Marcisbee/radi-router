@@ -3,6 +3,7 @@ export const version = '0.5.0';
 // Pass routes to initiate things
 const RadiRouter = ({
     h,
+    Await,
     Event,
     Service,
     Store,
@@ -134,7 +135,7 @@ const RadiRouter = ({
       meta: {},
     },
     // location: locationState({ url: null, state: null }),
-  })
+  }, null)
   .map((store, oldStore = {}) => {
     var loc = mode === 'hash' ? getHash() : getPath();
     var a = getRoute(loc) || {};
@@ -170,12 +171,15 @@ const RadiRouter = ({
 
   customAttribute('href', (e, value) => {
     if (mode === 'history') {
-      e.onclick = (ev) => {
-        ev.preventDefault();
 
-        history.pushState(null, null, value);
-        routeUpdate.dispatch(getPath);
-      };
+      if (value[0] === '/' && value[1] !== '/') {
+        e.onclick = (ev) => {
+          ev.preventDefault();
+
+          history.pushState(null, null, value);
+          routeUpdate.dispatch(getPath);
+        };
+      }
 
       return value;
     }
@@ -189,12 +193,6 @@ const RadiRouter = ({
     allowedTags: ['a'],
     addToElement: true,
   });
-
-  const routeChange = ({route, last}, newState) => ({
-    ...newState,
-    last,
-    route,
-  })
 
   function evalFn(fn) {
     if (typeof fn === 'function') return evalFn(fn());
@@ -295,7 +293,7 @@ const RadiRouter = ({
       }
     });
 
-    return h('await', { src, placeholder, waitMs });
+    return h(Await, { src, placeholder, waitMs });
   }
 
   const titleState = new Store({
@@ -303,7 +301,7 @@ const RadiRouter = ({
     text: null,
     suffix: 'Radi.js',
     seperator: ' | ',
-  });
+  }, null);
 
   class Title {
     constructor() {
