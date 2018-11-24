@@ -321,30 +321,25 @@ var RadiRouter = function (ref, routes) {
     seperator: ' | ',
   });
 
-  var setPrefix = function (state, prefix) { return (Object.assign({}, state, {prefix: prefix})); };
-  var setSuffix = function (state, suffix) { return (Object.assign({}, state, {suffix: suffix})); };
-  var setText = function (state, text) { return (Object.assign({}, state, {text: text})); };
-  var setSeperator = function (state, seperator) { return (Object.assign({}, state, {seperator: seperator})); };
-
   var Title = function Title() {
     this.onUpdate = this.onUpdate.bind(this);
     titleState.subscribe(this.onUpdate);
   };
 
-  Title.prototype.setPrefix = function setPrefix$1 (prefix) {
-    return titleState.dispatch(setPrefix, prefix);
+  Title.prototype.setPrefix = function setPrefix (prefix) {
+    return titleState.dispatch(function (state, prefix) { return (Object.assign({}, state, {prefix: prefix})); }, prefix);
   };
 
-  Title.prototype.setSuffix = function setSuffix$1 (suffix) {
-    return titleState.dispatch(setSuffix, suffix);
+  Title.prototype.setSuffix = function setSuffix (suffix) {
+    return titleState.dispatch(function (state, suffix) { return (Object.assign({}, state, {suffix: suffix})); }, suffix);
   };
 
   Title.prototype.set = function set (text) {
-    return titleState.dispatch(setText, text);
+    return titleState.dispatch(function (state, text) { return (Object.assign({}, state, {text: text})); }, text);
   };
 
-  Title.prototype.setSeperator = function setSeperator$1 (seperator) {
-    return titleState.dispatch(setSeperator, seperator);
+  Title.prototype.setSeperator = function setSeperator (seperator) {
+    return titleState.dispatch(function (state, seperator) { return (Object.assign({}, state, {seperator: seperator})); }, seperator);
   };
 
   Title.prototype.onUpdate = function onUpdate (state) {

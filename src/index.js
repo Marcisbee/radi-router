@@ -305,11 +305,6 @@ const RadiRouter = ({
     seperator: ' | ',
   });
 
-  const setPrefix = (state, prefix) => ({ ...state, prefix });
-  const setSuffix = (state, suffix) => ({ ...state, suffix });
-  const setText = (state, text) => ({ ...state, text });
-  const setSeperator = (state, seperator) => ({ ...state, seperator });
-
   class Title {
     constructor() {
       this.onUpdate = this.onUpdate.bind(this);
@@ -317,19 +312,19 @@ const RadiRouter = ({
     }
 
     setPrefix(prefix) {
-      return titleState.dispatch(setPrefix, prefix);
+      return titleState.dispatch((state, prefix) => ({ ...state, prefix }), prefix);
     }
 
     setSuffix(suffix) {
-      return titleState.dispatch(setSuffix, suffix);
+      return titleState.dispatch((state, suffix) => ({ ...state, suffix }), suffix);
     }
 
     set(text) {
-      return titleState.dispatch(setText, text);
+      return titleState.dispatch((state, text) => ({ ...state, text }), text);
     }
 
     setSeperator(seperator) {
-      return titleState.dispatch(setSeperator, seperator);
+      return titleState.dispatch((state, seperator) => ({ ...state, seperator }), seperator);
     }
 
     onUpdate(state) {
