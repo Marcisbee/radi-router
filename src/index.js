@@ -152,7 +152,7 @@ const RadiRouter = ({
     Service.Title.set(title);
 
     return {
-      route: reHashed[0],
+      route: reHashed[0].split(/[\?\&]/)[0],
       hash: reHashed[1],
       last: store.active,
       location: loc,
@@ -169,6 +169,22 @@ const RadiRouter = ({
     };
   });
 
+  customAttribute('route', (e, value) => {
+    if (mode === 'history') {
+      e.onclick = (ev) => {
+        ev.preventDefault();
+
+        RouterStore.push(value);
+      };
+      e.href = value;
+      return;
+    }
+
+    e.href = '#' + value;
+  }, {
+    addToElement: false,
+  });
+
   customAttribute('href', (e, value) => {
     if (mode === 'history') {
 
@@ -176,8 +192,7 @@ const RadiRouter = ({
         e.onclick = (ev) => {
           ev.preventDefault();
 
-          history.pushState(null, null, value);
-          routeUpdate.dispatch(getPath);
+          RouterStore.push(value);
         };
       }
 
@@ -201,7 +216,7 @@ const RadiRouter = ({
   }
 
   // Triggers when route is changed
-  function extractComponent(active, last) {
+  function extractComponent(active, route, last) {
     // Route is not yet ready
     // For the future, maybe show cached page or default screen
     // or loading placeholder if time between this and next request
@@ -209,7 +224,7 @@ const RadiRouter = ({
     if (active === null && typeof last === 'undefined') return;
 
     // const { active, last } = this.state
-    const RouteComponent = current.routes[active];
+    const RouteComponent = current.routes[active] || current.routes[route];
     const WillRender =
       typeof RouteComponent === 'object'
         ? RouteComponent.component
@@ -281,10 +296,10 @@ const RadiRouter = ({
 
   // Components
   function RouterBody({ placeholder, waitMs }) {
-    const { route } = RouterStore.state;
+    const { route, active, last } = RouterStore.state;
 
     const src = new Promise(resolve => {
-      const evaluated = evalFn(extractComponent(route));
+      const evaluated = evalFn(extractComponent(active, route, last));
 
       if (evaluated instanceof Promise) {
         evaluated.then(resolve);
@@ -295,6 +310,43 @@ const RadiRouter = ({
 
     return h(Await, { src, placeholder, waitMs });
   }
+
+  function QueryToUrl(query) {
+    let url = '';
+    let n = url.split('?').length - 1
+    for (let i in query) {
+      if (typeof query[i] !== 'undefined') {
+        url = url.concat(((!n) ? '?' : '&') + i + '=' + query[i])
+        n += 1
+      }
+    }
+    return url;
+  }
+
+  RouterStore.push = function push(url) {
+    if (url[0] === '/' && url[1] !== '/') {
+      history.pushState(null, null, url);
+      routeUpdate.dispatch(getPath);
+    }
+  };
+
+  RouterStore.query = function push(data) {
+    const state = RouterStore.get();
+    const url = state.location.split(/[\?\&]/)[0];
+
+    const search = (typeof data === 'function')
+      ? QueryToUrl(data(state.query))
+      : QueryToUrl(data);
+
+    RouterStore.push(url + search);
+  };
+
+  RouterStore.replace = function replace(url) {
+    if (url[0] === '/' && url[1] !== '/') {
+      history.replaceState(null, null, url);
+      routeUpdate.dispatch(getPath);
+    }
+  };
 
   const titleState = new Store({
     prefix: null,
@@ -376,13 +428,13 @@ const RadiRouter = ({
   };
 
   // Initiates router store
-  Service.add('routerStore', () => RouterStore);
+  Service.add('Router', () => RouterStore);
 
   // Initiates title plugin
   Service.add('Title', () => new Title());
 
   // Initiates router body component
-  Service.add('Router', () => RouterBody);
+  Service.add('RouterBody', () => RouterBody);
 
   return current;
 };

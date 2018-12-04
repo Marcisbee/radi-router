@@ -86,8 +86,6 @@ var RadiRouter = function (ref, routes) {
   };
 
   var Route = function Route(curr, match, routes, key) {
-    var this$1 = this;
-
     var query = curr
       .split(/[\?\&]/)
       .slice(1)
@@ -107,7 +105,7 @@ var RadiRouter = function (ref, routes) {
     this.cmp = routes[key] || {};
     this.params = this.cmp.data || {};
     for (var i = 0; i < match[1].length; i++) {
-      this$1.params[match[1][i]] = m[i + 1];
+      this.params[match[1][i]] = m[i + 1];
     }
   };
 
@@ -161,7 +159,7 @@ var RadiRouter = function (ref, routes) {
     Service.Title.set(title);
 
     return {
-      route: reHashed[0],
+      route: reHashed[0].split(/[\?\&]/)[0],
       hash: reHashed[1],
       last: store.active,
       location: loc,
@@ -178,6 +176,22 @@ var RadiRouter = function (ref, routes) {
     };
   });
 
+  customAttribute('route', function (e, value) {
+    if (mode === 'history') {
+      e.onclick = function (ev) {
+        ev.preventDefault();
+
+        RouterStore.push(value);
+      };
+      e.href = value;
+      return;
+    }
+
+    e.href = '#' + value;
+  }, {
+    addToElement: false,
+  });
+
   customAttribute('href', function (e, value) {
     if (mode === 'history') {
 
@@ -185,8 +199,7 @@ var RadiRouter = function (ref, routes) {
         e.onclick = function (ev) {
           ev.preventDefault();
 
-          history.pushState(null, null, value);
-          routeUpdate.dispatch(getPath);
+          RouterStore.push(value);
         };
       }
 
@@ -214,7 +227,7 @@ var RadiRouter = function (ref, routes) {
   }
 
   // Triggers when route is changed
-  function extractComponent(active, last) {
+  function extractComponent(active, route, last) {
     // Route is not yet ready
     // For the future, maybe show cached page or default screen
     // or loading placeholder if time between this and next request
@@ -222,7 +235,7 @@ var RadiRouter = function (ref, routes) {
     if (active === null && typeof last === 'undefined') { return; }
 
     // const { active, last } = this.state
-    var RouteComponent = current.routes[active];
+    var RouteComponent = current.routes[active] || current.routes[route];
     var WillRender =
       typeof RouteComponent === 'object'
         ? RouteComponent.component
@@ -298,9 +311,11 @@ var RadiRouter = function (ref, routes) {
 
     var ref$1 = RouterStore.state;
     var route = ref$1.route;
+    var active = ref$1.active;
+    var last = ref$1.last;
 
     var src = new Promise(function (resolve) {
-      var evaluated = evalFn(extractComponent(route));
+      var evaluated = evalFn(extractComponent(active, route, last));
 
       if (evaluated instanceof Promise) {
         evaluated.then(resolve);
@@ -311,6 +326,43 @@ var RadiRouter = function (ref, routes) {
 
     return h(Await, { src: src, placeholder: placeholder, waitMs: waitMs });
   }
+
+  function QueryToUrl(query) {
+    var url = '';
+    var n = url.split('?').length - 1;
+    for (var i in query) {
+      if (typeof query[i] !== 'undefined') {
+        url = url.concat(((!n) ? '?' : '&') + i + '=' + query[i]);
+        n += 1;
+      }
+    }
+    return url;
+  }
+
+  RouterStore.push = function push(url) {
+    if (url[0] === '/' && url[1] !== '/') {
+      history.pushState(null, null, url);
+      routeUpdate.dispatch(getPath);
+    }
+  };
+
+  RouterStore.query = function push(data) {
+    var state = RouterStore.get();
+    var url = state.location.split(/[\?\&]/)[0];
+
+    var search = (typeof data === 'function')
+      ? QueryToUrl(data(state.query))
+      : QueryToUrl(data);
+
+    RouterStore.push(url + search);
+  };
+
+  RouterStore.replace = function replace(url) {
+    if (url[0] === '/' && url[1] !== '/') {
+      history.replaceState(null, null, url);
+      routeUpdate.dispatch(getPath);
+    }
+  };
 
   var titleState = new Store({
     prefix: null,
@@ -390,13 +442,13 @@ var RadiRouter = function (ref, routes) {
   };
 
   // Initiates router store
-  Service.add('routerStore', function () { return RouterStore; });
+  Service.add('Router', function () { return RouterStore; });
 
   // Initiates title plugin
   Service.add('Title', function () { return new Title(); });
 
   // Initiates router body component
-  Service.add('Router', function () { return RouterBody; });
+  Service.add('RouterBody', function () { return RouterBody; });
 
   return current;
 };

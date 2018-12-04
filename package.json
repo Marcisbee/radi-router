@@ -1,6 +1,6 @@
 {
   "name": "radi-router",
-  "version": "0.5.0-beta.7",
+  "version": "0.5.0-beta.8",
   "main": "dist/radi-router.js",
   "module": "dist/radi-router.js",
   "jsnext:main": "dist/radi-router.es.js",
@@ -35,7 +35,7 @@
     "nyc": "^11.4.1"
   },
   "dependencies": {
-    "rollup-plugin-buble": "^0.19.2",
+    "rollup-plugin-buble": "^0.19.4",
     "rollup-plugin-node-resolve": "^3.4.0"
   }
 }
