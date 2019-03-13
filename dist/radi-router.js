@@ -9,8 +9,10 @@ var version = '0.5.0';
 // Pass routes to initiate things
 var RadiRouter = function (ref, routes) {
   var h = ref.h;
+  var Action = ref.Action;
   var Await = ref.Await;
   var Event = ref.Event;
+  var Merge = ref.Merge;
   var Service = ref.Service;
   var Store = ref.Store;
   var customAttribute = ref.customAttribute;
@@ -74,6 +76,7 @@ var RadiRouter = function (ref, routes) {
   };
 
   var getRoute = function (curr) {
+    if (!current.routes) { return null; }
     if (lr === curr) { return ld; }
     if (!cr) { cr = Object.keys(current.routes); }
     if (!crg) { crg = parseAllRoutes(cr); }
@@ -124,63 +127,69 @@ var RadiRouter = function (ref, routes) {
   );
   };
 
-
   var getHash = function () { return location.hash.substr(1) || '/'; };
   var getPath = function () { return decodeURI(location.pathname + location.search) || '/'; };
 
   var mode = routes.mode === 'hash'
     ? 'hash'
     : 'history';
+  
+  var getRealPath = mode === 'hash' ? getHash : getPath;
 
   var routeUpdate = mode === 'hash'
-    ? new Event(window, 'hashchange', function (e) { return getHash(); })(getHash())
-    : new Event(window, 'popstate', function (e) { return getPath(); })(getPath());
-
-  var RouterStore = new Store({
-    route: routeUpdate,
-    params: {},
-    query: {},
-    current: {
-      title: null,
-      tags: [],
-      meta: {},
-    },
-    // location: locationState({ url: null, state: null }),
-  }, null)
-  .map(function (store, oldStore) {
-    if ( oldStore === void 0 ) oldStore = {};
-
-    var loc = mode === 'hash' ? getHash() : getPath();
-    var a = getRoute(loc) || {};
-
-    // console.log('[radi-router] Route change', a);
-
-    window.scrollTo(0, 0);
-
-    // this.resolve(this.inject(a.key || '', this.state.active))
-
-    var title = a.cmp && a.cmp.title;
-    var reHashed = store.route.split('#');
-
-    Service.Title.set(title);
-
-    return {
-      route: reHashed[0].split(/[\?\&]/)[0],
-      hash: reHashed[1],
-      last: store.active,
-      location: loc,
-      params: a.params || {},
-      query: a.query || {},
-      active: a.key || '',
+    ? Event(window).on('hashchange', function () { return getRealPath(); })
+    : Event(window).on('popstate', function () { return getRealPath(); });
+  
+  var routeUpdateStore = Store(getRealPath())
+    .on(routeUpdate, function () { return getRealPath(); });
+  
+  var RouterStore = Merge([
+    routeUpdateStore,
+    Store({
+      params: {},
+      query: {},
       current: {
-        title: (typeof title === 'object') ? title : {
-          text: title,
-        } || null,
-        tags: (a.cmp && a.cmp.tags) || [],
-        meta: (a.cmp && a.cmp.meta) || {},
+        title: null,
+        tags: [],
+        meta: {},
       },
-    };
-  });
+    }) ], null)
+    .map(function (ref) {
+      var route = ref[0];
+      var state = ref[1];
+
+      if (!state || !route) { return {}; }
+      var loc = mode === 'hash' ? getHash() : getPath();
+      var a = getRoute(loc) || {};
+
+      // console.log('[radi-router] Route change', a);
+
+      window.scrollTo(0, 0);
+
+      // this.resolve(this.inject(a.key || '', this.state.active))
+
+      var title = a.cmp && a.cmp.title;
+      var reHashed = route.split('#');
+
+      if (Service.Title) { Service.Title.set(title); }
+
+      return {
+        route: reHashed[0].split(/[\?\&]/)[0],
+        hash: reHashed[1],
+        last: state.active,
+        location: loc,
+        params: a.params || {},
+        query: a.query || {},
+        active: a.key || '',
+        current: {
+          title: (typeof title === 'object') ? title : {
+            text: title,
+          } || null,
+          tags: (a.cmp && a.cmp.tags) || [],
+          meta: (a.cmp && a.cmp.meta) || {},
+        },
+      };
+    });
 
   customAttribute('route', function (e, value) {
     if (mode === 'history') {
@@ -299,7 +308,7 @@ var RadiRouter = function (ref, routes) {
 
           // Restricted
           return resolve(renderError(403));
-        }, RouterStore.get());
+        }, RouterStore.getRawState());
       };
 
       // return h('div', {}, h('await', {src: new Promise(checkGuard)}));
@@ -348,12 +357,12 @@ var RadiRouter = function (ref, routes) {
   RouterStore.push = function push(url) {
     if (url[0] === '/' && url[1] !== '/') {
       history.pushState(null, null, url);
-      routeUpdate.dispatch(getPath);
+      routeUpdate(getPath);
     }
   };
 
   RouterStore.query = function push(data) {
-    var state = RouterStore.get();
+    var state = RouterStore.getRawState();
     var url = state.location.split(/[\?\&]/)[0];
 
     var search = (typeof data === 'function')
@@ -366,16 +375,19 @@ var RadiRouter = function (ref, routes) {
   RouterStore.replace = function replace(url) {
     if (url[0] === '/' && url[1] !== '/') {
       history.replaceState(null, null, url);
-      routeUpdate.dispatch(getPath);
+      routeUpdate(getPath);
     }
   };
 
-  var titleState = new Store({
+  var modifyTitle = Action('Modify Title');
+
+  var titleState = Store({
     prefix: null,
     text: null,
     suffix: 'Radi.js',
     seperator: ' | ',
-  }, null);
+  }, null)
+    .on(modifyTitle, function (state, payload) { return (Object.assign({}, state, payload)); });
 
   var Title = function Title() {
     this.onUpdate = this.onUpdate.bind(this);
@@ -383,19 +395,19 @@ var RadiRouter = function (ref, routes) {
   };
 
   Title.prototype.setPrefix = function setPrefix (prefix) {
-    return titleState.dispatch(function (state, prefix) { return (Object.assign({}, state, {prefix: prefix})); }, prefix);
+    return modifyTitle({ prefix: prefix });
   };
 
   Title.prototype.setSuffix = function setSuffix (suffix) {
-    return titleState.dispatch(function (state, suffix) { return (Object.assign({}, state, {suffix: suffix})); }, suffix);
+    return modifyTitle({ suffix: suffix });
   };
 
   Title.prototype.set = function set (text) {
-    return titleState.dispatch(function (state, text) { return (Object.assign({}, state, {text: text})); }, text);
+    return modifyTitle({ text: text });
   };
 
   Title.prototype.setSeperator = function setSeperator (seperator) {
-    return titleState.dispatch(function (state, seperator) { return (Object.assign({}, state, {seperator: seperator})); }, seperator);
+    return modifyTitle({ seperator: seperator });
   };
 
   Title.prototype.onUpdate = function onUpdate (state) {
@@ -459,7 +471,7 @@ var RadiRouter = function (ref, routes) {
   return current;
 };
 
-if (window) { window.RadiRouter = RadiRouter; }
+if (typeof window !== 'undefined') { window.RadiRouter = RadiRouter; }
 
 exports.version = version;
 exports.default = RadiRouter;

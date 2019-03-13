@@ -3,8 +3,10 @@ export const version = '0.5.0';
 // Pass routes to initiate things
 const RadiRouter = ({
     h,
+    Action,
     Await,
     Event,
+    Merge,
     Service,
     Store,
     customAttribute,
@@ -66,7 +68,8 @@ const RadiRouter = ({
     return children;
   };
 
-  const getRoute = curr => {
+  const getRoute = (curr) => {
+    if (!current.routes) return null;
     if (lr === curr) return ld;
     if (!cr) cr = Object.keys(current.routes);
     if (!crg) crg = parseAllRoutes(cr);
@@ -113,61 +116,67 @@ const RadiRouter = ({
     args.reduce((a, v) => (v ? a.concat(v) : a), [])
   );
 
-
   const getHash = () => location.hash.substr(1) || '/';
   const getPath = () => decodeURI(location.pathname + location.search) || '/';
 
   const mode = routes.mode === 'hash'
     ? 'hash'
     : 'history';
+  
+  const getRealPath = mode === 'hash' ? getHash : getPath;
 
   const routeUpdate = mode === 'hash'
-    ? new Event(window, 'hashchange', e => getHash())(getHash())
-    : new Event(window, 'popstate', e => getPath())(getPath());
-
-  const RouterStore = new Store({
-    route: routeUpdate,
-    params: {},
-    query: {},
-    current: {
-      title: null,
-      tags: [],
-      meta: {},
-    },
-    // location: locationState({ url: null, state: null }),
-  }, null)
-  .map((store, oldStore = {}) => {
-    var loc = mode === 'hash' ? getHash() : getPath();
-    var a = getRoute(loc) || {};
-
-    // console.log('[radi-router] Route change', a);
-
-    window.scrollTo(0, 0);
-
-    // this.resolve(this.inject(a.key || '', this.state.active))
-
-    let title = a.cmp && a.cmp.title;
-    const reHashed = store.route.split('#');
-
-    Service.Title.set(title);
-
-    return {
-      route: reHashed[0].split(/[\?\&]/)[0],
-      hash: reHashed[1],
-      last: store.active,
-      location: loc,
-      params: a.params || {},
-      query: a.query || {},
-      active: a.key || '',
+    ? Event(window).on('hashchange', () => getRealPath())
+    : Event(window).on('popstate', () => getRealPath());
+  
+  const routeUpdateStore = Store(getRealPath())
+    .on(routeUpdate, () => getRealPath());
+  
+  const RouterStore = Merge([
+    routeUpdateStore,
+    Store({
+      params: {},
+      query: {},
       current: {
-        title: (typeof title === 'object') ? title : {
-          text: title,
-        } || null,
-        tags: (a.cmp && a.cmp.tags) || [],
-        meta: (a.cmp && a.cmp.meta) || {},
+        title: null,
+        tags: [],
+        meta: {},
       },
-    };
-  });
+    }),
+  ], null)
+    .map(([route, state]) => {
+      if (!state || !route) return {};
+      var loc = mode === 'hash' ? getHash() : getPath();
+      var a = getRoute(loc) || {};
+
+      // console.log('[radi-router] Route change', a);
+
+      window.scrollTo(0, 0);
+
+      // this.resolve(this.inject(a.key || '', this.state.active))
+
+      let title = a.cmp && a.cmp.title;
+      const reHashed = route.split('#');
+
+      if (Service.Title) Service.Title.set(title);
+
+      return {
+        route: reHashed[0].split(/[\?\&]/)[0],
+        hash: reHashed[1],
+        last: state.active,
+        location: loc,
+        params: a.params || {},
+        query: a.query || {},
+        active: a.key || '',
+        current: {
+          title: (typeof title === 'object') ? title : {
+            text: title,
+          } || null,
+          tags: (a.cmp && a.cmp.tags) || [],
+          meta: (a.cmp && a.cmp.meta) || {},
+        },
+      };
+    });
 
   customAttribute('route', (e, value) => {
     if (mode === 'history') {
@@ -283,7 +292,7 @@ const RadiRouter = ({
 
           // Restricted
           return resolve(renderError(403));
-        }, RouterStore.get());
+        }, RouterStore.getRawState());
       };
 
       // return h('div', {}, h('await', {src: new Promise(checkGuard)}));
@@ -326,12 +335,12 @@ const RadiRouter = ({
   RouterStore.push = function push(url) {
     if (url[0] === '/' && url[1] !== '/') {
       history.pushState(null, null, url);
-      routeUpdate.dispatch(getPath);
+      routeUpdate(getPath);
     }
   };
 
   RouterStore.query = function push(data) {
-    const state = RouterStore.get();
+    const state = RouterStore.getRawState();
     const url = state.location.split(/[\?\&]/)[0];
 
     const search = (typeof data === 'function')
@@ -344,16 +353,19 @@ const RadiRouter = ({
   RouterStore.replace = function replace(url) {
     if (url[0] === '/' && url[1] !== '/') {
       history.replaceState(null, null, url);
-      routeUpdate.dispatch(getPath);
+      routeUpdate(getPath);
     }
   };
 
-  const titleState = new Store({
+  const modifyTitle = Action('Modify Title');
+
+  const titleState = Store({
     prefix: null,
     text: null,
     suffix: 'Radi.js',
     seperator: ' | ',
-  }, null);
+  }, null)
+    .on(modifyTitle, (state, payload) => ({ ...state, ...payload }));
 
   class Title {
     constructor() {
@@ -362,19 +374,19 @@ const RadiRouter = ({
     }
 
     setPrefix(prefix) {
-      return titleState.dispatch((state, prefix) => ({ ...state, prefix }), prefix);
+      return modifyTitle({ prefix });
     }
 
     setSuffix(suffix) {
-      return titleState.dispatch((state, suffix) => ({ ...state, suffix }), suffix);
+      return modifyTitle({ suffix });
     }
 
     set(text) {
-      return titleState.dispatch((state, text) => ({ ...state, text }), text);
+      return modifyTitle({ text });
     }
 
     setSeperator(seperator) {
-      return titleState.dispatch((state, seperator) => ({ ...state, seperator }), seperator);
+      return modifyTitle({ seperator });
     }
 
     onUpdate(state) {
@@ -439,5 +451,5 @@ const RadiRouter = ({
   return current;
 };
 
-if (window) window.RadiRouter = RadiRouter;
+if (typeof window !== 'undefined') window.RadiRouter = RadiRouter;
 export default RadiRouter;
