@@ -222,3 +222,21 @@ export function navigate(e) {
 
   router.navigate(route);
 }
+
+export function Link(params) {
+  const { children, onclick, ...restParams } = params;
+  return Radi.html('a', Object.assign({}, restParams, {
+    onclick: (e) => (navigate(e), typeof onclick === 'function' && onclick(e)),
+  }), children);
+}
+
+export default {
+  version,
+  Title,
+  TitleStore,
+  Setup,
+  RouterStore,
+  RouterBody,
+  navigate,
+  Link,
+};

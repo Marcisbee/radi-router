@@ -542,6 +542,7 @@ Navigo.REPLACE_WILDCARD = "(?:.*)";
 Navigo.FOLLOWED_BY_SLASH_REGEXP = "(?:/$|$)";
 Navigo.MATCH_REGEXP_FLAGS = "";
 
+function objectWithoutProperties (obj, exclude) { var target = {}; for (var k in obj) if (Object.prototype.hasOwnProperty.call(obj, k) && exclude.indexOf(k) === -1) target[k] = obj[k]; return target; }
 var Radi = typeof window !== 'undefined' ? window.Radi : Radi;
 
 var version = '0.5.0';
@@ -782,6 +783,27 @@ function navigate(e) {
   router.navigate(route);
 }
 
+function Link(params) {
+  var children = params.children;
+  var onclick = params.onclick;
+  var rest = objectWithoutProperties( params, ["children", "onclick"] );
+  var restParams = rest;
+  return Radi.html('a', Object.assign({}, restParams, {
+    onclick: function (e) { return (navigate(e), typeof onclick === 'function' && onclick(e)); },
+  }), children);
+}
+
+var index = {
+  version: version,
+  Title: Title,
+  TitleStore: TitleStore,
+  Setup: Setup,
+  RouterStore: RouterStore,
+  RouterBody: RouterBody,
+  navigate: navigate,
+  Link: Link,
+};
+
 exports.version = version;
 exports.RouterStore = RouterStore;
 exports.Title = Title;
@@ -789,6 +811,8 @@ exports.TitleStore = TitleStore;
 exports.Setup = Setup;
 exports.RouterBody = RouterBody;
 exports.navigate = navigate;
+exports.Link = Link;
+exports.default = index;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
