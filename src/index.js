@@ -1,455 +1,224 @@
+import Navigo from './navigo';
+
+const Radi = typeof window !== 'undefined' ? window.Radi : Radi;
+
 export const version = '0.5.0';
 
-// Pass routes to initiate things
-const RadiRouter = ({
-    h,
-    Action,
-    Await,
-    Event,
-    Merge,
-    Service,
-    Store,
-    customAttribute,
-  }, routes = []) => {
-  if (!routes) {
-    console.warn('[Radi:Router] Routes should be set as a second parameter');
-  }
-  let current = {};
-
-  const COLON = ':'.charCodeAt(0);
-  const SLASH = '/'.charCodeAt(0);
-  var cr, crg, lr, ld;
-
-  const parseRoute = route => {
-    var parts = route.split('/'),
-      end = [],
-      p = [];
-    for (var i = 0; i < parts.length; i++) {
-      if (COLON === parts[i].charCodeAt(0)) {
-        end.push('([^/]+?)');
-        p.push(parts[i].substr(1));
-      } else if (parts[i] !== '') {
-        end.push(parts[i]);
-      }
-    }
-    return [new RegExp('^/' + end.join('/') + '(?:[/])?(?:[?&].*)?$', 'i'), p];
-  };
-
-  const parseAllRoutes = arr => {
-    var len = arr.length,
-      ret = new Array(len);
-    for (var i = len - 1; i >= 0; i--) {
-      ret[i] = parseRoute(arr[i]);
-    }
-    return ret;
-  };
-
-  const renderError = number => {
-    return current.config.errors[number]();
-  };
-
-  const writeUrl = url => {
-    window.location.hash = url;
-    return true;
-  };
-
-  const extractChildren = routes => {
-    let children = routes;
-    for (let child in routes) {
-      if (routes.hasOwnProperty(child) && routes[child].children) {
-        let extracted = extractChildren(routes[child].children);
-        for (var nn in extracted) {
-          if (extracted.hasOwnProperty(nn)) {
-            children[child + nn] = extracted[nn];
-          }
-        }
-      }
-    }
-    return children;
-  };
-
-  const getRoute = (curr) => {
-    if (!current.routes) return null;
-    if (lr === curr) return ld;
-    if (!cr) cr = Object.keys(current.routes);
-    if (!crg) crg = parseAllRoutes(cr);
-    var cahnged = false;
-
-    for (var i = 0; i < crg.length; i++) {
-      if (crg[i][0].test(curr)) {
-        ld = new Route(curr, crg[i], current.routes, cr[i]);
-        cahnged = true;
-        break;
-      }
-    }
-
-    lr = curr;
-    return !cahnged ? { key: null } : ld;
-  };
-
-  class Route {
-    constructor(curr, match, routes, key) {
-      const query = curr
-        .split(/[\?\&]/)
-        .slice(1)
-        .map(query => query.split('='))
-        .reduce(
-          (acc, key) =>
-            Object.assign(acc, {
-              [key[0]]: key[1]
-            }),
-          {}
-        );
-      var m = curr.match(match[0]);
-      this.path = curr;
-      this.key = key;
-      this.query = query;
-      this.cmp = routes[key] || {};
-      this.params = this.cmp.data || {};
-      for (var i = 0; i < match[1].length; i++) {
-        this.params[match[1][i]] = m[i + 1];
-      }
-    }
-  }
-
-  const combineTitle = (...args) => (
-    args.reduce((a, v) => (v ? a.concat(v) : a), [])
-  );
-
-  const getHash = () => location.hash.substr(1) || '/';
-  const getPath = () => decodeURI(location.pathname + location.search) || '/';
-
-  const mode = routes.mode === 'hash'
-    ? 'hash'
-    : 'history';
-  
-  const getRealPath = mode === 'hash' ? getHash : getPath;
-
-  const routeUpdate = mode === 'hash'
-    ? Event(window).on('hashchange', () => getRealPath())
-    : Event(window).on('popstate', () => getRealPath());
-  
-  const routeUpdateStore = Store(getRealPath())
-    .on(routeUpdate, () => getRealPath());
-  
-  const RouterStore = Merge([
-    routeUpdateStore,
-    Store({
-      params: {},
-      query: {},
-      current: {
-        title: null,
-        tags: [],
-        meta: {},
-      },
-    }),
-  ], null)
-    .map(([route, state]) => {
-      if (!state || !route) return {};
-      var loc = mode === 'hash' ? getHash() : getPath();
-      var a = getRoute(loc) || {};
-
-      // console.log('[radi-router] Route change', a);
-
-      window.scrollTo(0, 0);
-
-      // this.resolve(this.inject(a.key || '', this.state.active))
-
-      let title = a.cmp && a.cmp.title;
-      const reHashed = route.split('#');
-
-      if (Service.Title) Service.Title.set(title);
-
-      return {
-        route: reHashed[0].split(/[\?\&]/)[0],
-        hash: reHashed[1],
-        last: state.active,
-        location: loc,
-        params: a.params || {},
-        query: a.query || {},
-        active: a.key || '',
-        current: {
-          title: (typeof title === 'object') ? title : {
-            text: title,
-          } || null,
-          tags: (a.cmp && a.cmp.tags) || [],
-          meta: (a.cmp && a.cmp.meta) || {},
-        },
-      };
-    });
-
-  customAttribute('route', (e, value) => {
-    if (mode === 'history') {
-      e.onclick = (ev) => {
-        ev.preventDefault();
-
-        RouterStore.push(value);
-      };
-      e.href = value;
-      return;
-    }
-
-    e.href = '#' + value;
-  }, {
-    addToElement: false,
-  });
-
-  customAttribute('href', (e, value) => {
-    if (mode === 'history') {
-
-      if (value[0] === '/' && value[1] !== '/') {
-        e.onclick = (ev) => {
-          ev.preventDefault();
-
-          RouterStore.push(value);
-        };
-      }
-
-      return value;
-    }
-
-    if (value[0] === '#') return RouterStore.listener(({route}) => (
-      '#' + route + value
-    ));
-
-    return '#' + value;
-  }, {
-    allowedTags: ['a'],
-    addToElement: true,
-  });
-
-  function evalFn(fn) {
-    if (typeof fn === 'function') return evalFn(fn());
-    if (typeof fn === 'object' && fn.default) return evalFn(fn.default);
-    return fn;
-  }
-
-  // Triggers when route is changed
-  function extractComponent(active, route, last) {
-    // Route is not yet ready
-    // For the future, maybe show cached page or default screen
-    // or loading placeholder if time between this and next request
-    // is too long
-    if (active === null && typeof last === 'undefined') return;
-
-    // const { active, last } = this.state
-    const RouteComponent = current.routes[active] || current.routes[route];
-    const WillRender =
-      typeof RouteComponent === 'object'
-        ? RouteComponent.component
-        : RouteComponent;
-
-    // Route not found or predefined error
-    if (
-      (typeof WillRender === 'undefined' ||
-        typeof WillRender === 'number' ||
-        !WillRender) &&
-      typeof RouteComponent === 'undefined'
-    )
-      return renderError(WillRender || 404);
-
-    // Plain redirect
-    if (typeof RouteComponent.redirect === 'string')
-      return writeUrl(RouteComponent.redirect);
-
-    // Check if has any guards to check
-    const guards = [
-      current.before || null,
-      RouteComponent.before || null,
-    ].filter(guard => typeof guard === 'function');
-
-    if (guards.length > 0) {
-      const checkGuard = (resolve, reject) => {
-        const popped = guards.pop();
-
-        if (typeof popped !== 'function') {
-          return resolve(WillRender);
-        }
-
-        return popped(active, last, act => {
-          // Render
-          if (typeof act === 'undefined' || act === true) {
-            if (guards.length > 0) {
-              return checkGuard(resolve, reject);
-            } else {
-              return resolve(WillRender);
-            }
-          }
-
-          if (act) {
-            if (guards.length > 0) {
-              return checkGuard(resolve, reject);
-            } else {
-              return resolve(act);
-            }
-          }
-
-          // Redirect
-          // if (typeof act === 'string' && act.charCodeAt(0) === SLASH) {
-          //   reject();
-          //   return writeUrl(act);
-          // }
-
-          // Restricted
-          return resolve(renderError(403));
-        }, RouterStore.getRawState());
-      };
-
-      // return h('div', {}, h('await', {src: new Promise(checkGuard)}));
-      return new Promise(checkGuard);
-    }
-
-    // Route is plain text/object
-    return WillRender;
-  }
-
-  // Components
-  function RouterBody({ placeholder, waitMs }) {
-    const { route, active, last } = RouterStore.state;
-
-    const src = new Promise(resolve => {
-      const evaluated = evalFn(extractComponent(active, route, last));
-
-      if (evaluated instanceof Promise) {
-        evaluated.then(resolve);
-      } else {
-        resolve(evaluated);
-      }
-    });
-
-    return h(Await, { src, placeholder, waitMs });
-  }
-
-  function QueryToUrl(query) {
-    let url = '';
-    let n = url.split('?').length - 1
-    for (let i in query) {
-      if (typeof query[i] !== 'undefined') {
-        url = url.concat(((!n) ? '?' : '&') + i + '=' + query[i])
-        n += 1
-      }
-    }
-    return url;
-  }
-
-  RouterStore.push = function push(url) {
-    if (url[0] === '/' && url[1] !== '/') {
-      history.pushState(null, null, url);
-      routeUpdate(getPath);
-    }
-  };
-
-  RouterStore.query = function push(data) {
-    const state = RouterStore.getRawState();
-    const url = state.location.split(/[\?\&]/)[0];
-
-    const search = (typeof data === 'function')
-      ? QueryToUrl(data(state.query))
-      : QueryToUrl(data);
-
-    RouterStore.push(url + search);
-  };
-
-  RouterStore.replace = function replace(url) {
-    if (url[0] === '/' && url[1] !== '/') {
-      history.replaceState(null, null, url);
-      routeUpdate(getPath);
-    }
-  };
-
-  const modifyTitle = Action('Modify Title');
-
-  const titleState = Store({
-    prefix: null,
-    text: null,
-    suffix: 'Radi.js',
-    seperator: ' | ',
-  }, null)
-    .on(modifyTitle, (state, payload) => ({ ...state, ...payload }));
-
-  class Title {
-    constructor() {
-      this.onUpdate = this.onUpdate.bind(this);
-      titleState.subscribe(this.onUpdate);
-    }
-
-    setPrefix(prefix) {
-      return modifyTitle({ prefix });
-    }
-
-    setSuffix(suffix) {
-      return modifyTitle({ suffix });
-    }
-
-    set(text) {
-      return modifyTitle({ text });
-    }
-
-    setSeperator(seperator) {
-      return modifyTitle({ seperator });
-    }
-
-    onUpdate(state) {
-      let titleConfig = state || {};
-
-      let pefix = (routes.title && routes.title.prefix) || titleConfig.prefix;
-      let text = titleConfig.text || (routes.title && routes.title.text) || titleConfig.text;
-      let suffix = (routes.title && routes.title.suffix) || titleConfig.suffix;
-
-      let title = combineTitle(
-        pefix,
-        text,
-        suffix
-      ).join(titleConfig.seperator);
-
-      if (title && document.title !== title) {
-        document.title = title;
-      }
-
-      if (titleConfig.text && text !== titleConfig.text) {
-        this.set(null);
-      }
-    }
-  }
-
-  const before = routes.beforeEach;
-  const after = routes.afterEach;
-
-  const getError = (code, fallback) => {
-    let error = routes.errors && routes.errors[code];
-
-    if (error) {
-      return typeof error === 'function' ? error : () => error;
-    }
-
-    return fallback;
-  };
-
-  current = {
-    config: {
-      errors: {
-        404: getError(404, () => h('div', {}, 'Error 404: Not Found')),
-        403: getError(403, () => h('div', {}, 'Error 403: Forbidden')),
-      },
-    },
-    before,
-    after,
-    routes: extractChildren(routes.routes),
-    write: writeUrl,
-    Router: RouterBody,
-  };
-
-  // Initiates router store
-  Service.add('Router', () => RouterStore);
-
-  // Initiates title plugin
-  Service.add('Title', () => new Title());
-
-  // Initiates router body component
-  Service.add('RouterBody', () => RouterBody);
-
-  return current;
+const RouterAction = Radi.Action('Router Action');
+export const RouterStore = Radi.Store({
+  meta: {},
+  params: {},
+  component: null,
+  tags: [],
+  title: '',
+}).on(RouterAction, (state, newState) => {
+  return Object.assign({}, state, newState);
+});
+
+export const Title = {
+  setText: Radi.Action('Router Set Title Text'),
+  setPrefix: Radi.Action('Router Set Title'),
+  setSuffix: Radi.Action('Router Set Title'),
+  setSeparator: Radi.Action('Router Set Title'),
 };
+export const TitleStore = Radi.Store({
+  prefix: '',
+  suffix: '',
+  separator: '|',
+  text: 'Radi',
+})
+  .on(Title.setText, (state, text) => Object.assign({}, state, { text }))
+  .on(Title.setPrefix, (state, prefix) => Object.assign({}, state, { prefix }))
+  .on(Title.setSuffix, (state, suffix) => Object.assign({}, state, { suffix }))
+  .on(Title.setSeparator, (state, separator) => Object.assign({}, state, { separator }));
 
-if (typeof window !== 'undefined') window.RadiRouter = RadiRouter;
-export default RadiRouter;
+TitleStore.subscribe(({ prefix, suffix, separator, text }) => {
+  document.title = []
+    .concat((text && prefix) ? [prefix, separator] : [prefix])
+    .concat(text)
+    .concat((text && suffix) ? [separator, suffix] : [suffix])
+    .filter((item) => !!item)
+    .join(' ');
+});
+
+const root = null;
+const useHash = false; // Defaults to: false
+const hash = '#'; // Defaults to: '#'
+const router = new Navigo(root, useHash, hash);
+
+function getPath() {
+  return router._cLoc().replace(router._getRoot(), '') || '/';
+}
+
+function Forbidden() {
+  return 'Access Forbidden';
+}
+
+function NotFound() {
+  return 'Not Found';
+}
+
+function spreadChildren(current, path = [], source = {}) {
+  return Object.keys(current).reduce(
+    (acc, key) => {
+      const item = current[key];
+      const localPath = path.concat(key);
+      const children = (item.children) ? spreadChildren(item.children, localPath, source) : {};
+
+      if (item.children) {
+        delete item.children;
+      }
+
+      return Object.assign(acc, { [('/' + localPath.join('/')).replace(/\/\//g, '/')]: item }, children);
+    },
+    source,
+  );
+}
+
+export function Setup({
+  routes,
+  beforeEach,
+  afterEach,
+  title = {
+    text: 'Radi',
+    suffix: null,
+    prefix: null,
+    separator: null,
+  },
+  errors: {
+    404: Custom404 = NotFound,
+    403: Custom403 = Forbidden,
+  },
+}) {
+  const spreadRoutes = spreadChildren(routes);
+  const routeKeys = Object.keys(spreadRoutes);
+
+  function checkAccess(done, routeConfig) {
+    return response => {
+      if (response === false) {
+        RouterAction({
+          params: routeConfig.params || {},
+          meta: routeConfig.meta || {},
+          tags: routeConfig.tags || [],
+          title: routeConfig.title || '',
+          component: Custom403,
+        });
+        return done(false);
+      }
+      return done(true);
+    };
+  }
+
+  if (title.text) Title.setText(title.text);
+  if (title.suffix) Title.setSuffix(title.suffix);
+  if (title.prefix) Title.setPrefix(title.prefix);
+  if (title.separator) Title.setSeparator(title.separator);
+
+  router.notFound((params = {}) => {
+    return RouterAction({
+      params,
+      component: Custom404,
+    });
+  });
+
+  router.hooks({
+    before(done, params) {
+      const path = getPath();
+      const m = router.helpers.match(path, router._routes);
+      const mPath = m ? (m.route && m.route.route) : path;
+      const routeConfig = Object.assign(
+        {},
+        routesConfig[mPath],
+        { params },
+      );
+
+      if (typeof beforeEach === 'function') {
+        return beforeEach(checkAccess(done, routeConfig), routeConfig);
+      }
+
+      return done();
+    },
+    after(params) {
+      window.scrollTo(0, 0);
+      const path = getPath();
+      if (typeof afterEach === 'function') {
+        return afterEach({
+          path,
+          params,
+        });
+      }
+    }
+  });
+
+  const routesConfig = {};
+
+  routeKeys
+    .reduce((accRouter, key) => {
+      const config = Object.assign({}, spreadRoutes[key], { params: {} });
+
+      routesConfig[key] = config;
+
+      return accRouter.on(
+        key,
+        (params = {}) => {
+          const component = config.component();
+          return RouterAction(Object.assign({}, config, {
+            params,
+            component,
+          }));
+        },
+        {
+          before(done, params) {
+            const path = getPath();
+            const m = router.helpers.match(path, router._routes);
+            const mPath = m ? (m.route && m.route.route) : path;
+            const routeConfig = Object.assign(
+              {},
+              routesConfig[mPath],
+              Object.assign({}, config.params, params)
+            );
+
+            if (typeof config.before === 'function') {
+              return config.before(checkAccess(done, routeConfig), routeConfig);
+            }
+
+            return done();
+          }
+        }
+      );
+    }, router)
+    .resolve();
+
+  return router;
+}
+
+export function RouterBody({ placeholder = 'Loading..' }) {
+  const { component, title } = Radi.Watch(RouterStore);
+
+  if (typeof title === 'string') {
+    Title.setText(title);
+  }
+
+  if (title && typeof title === 'object') {
+    if (title.text) Title.setText(title.text);
+    if (title.suffix) Title.setSuffix(title.suffix);
+    if (title.prefix) Title.setPrefix(title.prefix);
+    if (title.separator) Title.setSeparator(title.separator);
+  }
+
+  if (component instanceof Promise) {
+    return Radi.html(Radi.Await, {
+      src: component,
+      placeholder: placeholder,
+    });
+  }
+
+  return component;
+}
+
+export function navigate(e) {
+  e.preventDefault();
+  const route = e.target.getAttribute('href');
+
+  router.navigate(route);
+}
