@@ -541,8 +541,9 @@ var Radi = typeof window !== 'undefined' ? window.Radi : Radi;
 
 var version = '0.5.0';
 
-var RouterAction = Radi.Action('Router Action');
-var RouterStore = Radi.Store({
+var RouterAction = Radi.action('Router Action');
+var RouterStore = Radi.store({
+  path: '/',
   meta: {},
   params: {},
   component: null,
@@ -553,12 +554,12 @@ var RouterStore = Radi.Store({
 });
 
 var Title = {
-  setText: Radi.Action('Router Set Title Text'),
-  setPrefix: Radi.Action('Router Set Title'),
-  setSuffix: Radi.Action('Router Set Title'),
-  setSeparator: Radi.Action('Router Set Title'),
+  setText: Radi.action('Router Set Title Text'),
+  setPrefix: Radi.action('Router Set Title'),
+  setSuffix: Radi.action('Router Set Title'),
+  setSeparator: Radi.action('Router Set Title'),
 };
-var TitleStore = Radi.Store({
+var TitleStore = Radi.store({
   prefix: '',
   suffix: '',
   separator: '|',
@@ -643,6 +644,7 @@ function Setup(ref) {
     return function (response) {
       if (response === false) {
         RouterAction({
+          path: routeConfig.path || '/',
           params: routeConfig.params || {},
           meta: routeConfig.meta || {},
           tags: routeConfig.tags || [],
@@ -675,7 +677,9 @@ function Setup(ref) {
       var m = router.helpers.match(path, router._routes);
       var mPath = m ? (m.route && m.route.route) : path;
       var routeConfig = Object.assign(
-        {},
+        {
+          path: mPath,
+        },
         routesConfig[mPath],
         { params: params }
       );
@@ -702,7 +706,7 @@ function Setup(ref) {
 
   routeKeys
     .reduce(function (accRouter, key) {
-      var config = Object.assign({}, spreadRoutes[key], { params: {} });
+      var config = Object.assign({}, spreadRoutes[key], { path: key, params: {} });
 
       routesConfig[key] = config;
 
@@ -723,7 +727,9 @@ function Setup(ref) {
             var m = router.helpers.match(path, router._routes);
             var mPath = m ? (m.route && m.route.route) : path;
             var routeConfig = Object.assign(
-              {},
+              {
+                path: mPath,
+              },
               routesConfig[mPath],
               Object.assign({}, config.params, params)
             );
@@ -745,7 +751,7 @@ function Setup(ref) {
 function RouterBody(ref) {
   var placeholder = ref.placeholder; if ( placeholder === void 0 ) placeholder = 'Loading..';
 
-  var ref$1 = Radi.Watch(RouterStore);
+  var ref$1 = Radi.watch(RouterStore);
   var component = ref$1.component;
   var title = ref$1.title;
 
@@ -780,10 +786,27 @@ function navigate(e) {
 function Link(params) {
   var children = params.children;
   var onclick = params.onclick;
-  var rest = objectWithoutProperties( params, ["children", "onclick"] );
+  var active = params.active; if ( active === void 0 ) active = 'strict';
+  var rest = objectWithoutProperties( params, ["children", "onclick", "active"] );
   var restParams = rest;
+
   return Radi.html('a', Object.assign({}, restParams, {
     onclick: function (e) { return (navigate(e), typeof onclick === 'function' && onclick(e)); },
+    onmount: function (a) {
+      if (!active || active === 'none') { return false; }
+
+      var link = a.target;
+      RouterStore.subscribe(function (state) {
+        if (
+          (active === 'loose' && new RegExp('^' + params.href).test(state.path)) ||
+          (active === 'strict' && params.href === state.path)
+        ) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    },
   }), children);
 }
 
@@ -794,10 +817,10 @@ var index = {
   Setup: Setup,
   RouterStore: RouterStore,
   RouterBody: RouterBody,
-  navigate: navigate,
+  Body: RouterBody,
+  navigate: router.navigate,
   Link: Link,
 };
 
 export default index;
-export { version, RouterStore, Title, TitleStore, Setup, RouterBody, navigate, Link };
 //# sourceMappingURL=radi-router.es.js.map

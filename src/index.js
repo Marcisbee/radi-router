@@ -2,10 +2,11 @@ import Navigo from './navigo';
 
 const Radi = typeof window !== 'undefined' ? window.Radi : Radi;
 
-export const version = '0.5.0';
+const version = '0.5.0';
 
-const RouterAction = Radi.Action('Router Action');
-export const RouterStore = Radi.Store({
+const RouterAction = Radi.action('Router Action');
+const RouterStore = Radi.store({
+  path: '/',
   meta: {},
   params: {},
   component: null,
@@ -15,13 +16,13 @@ export const RouterStore = Radi.Store({
   return Object.assign({}, state, newState);
 });
 
-export const Title = {
-  setText: Radi.Action('Router Set Title Text'),
-  setPrefix: Radi.Action('Router Set Title'),
-  setSuffix: Radi.Action('Router Set Title'),
-  setSeparator: Radi.Action('Router Set Title'),
+const Title = {
+  setText: Radi.action('Router Set Title Text'),
+  setPrefix: Radi.action('Router Set Title'),
+  setSuffix: Radi.action('Router Set Title'),
+  setSeparator: Radi.action('Router Set Title'),
 };
-export const TitleStore = Radi.Store({
+const TitleStore = Radi.store({
   prefix: '',
   suffix: '',
   separator: '|',
@@ -75,7 +76,7 @@ function spreadChildren(current, path = [], source = {}) {
   );
 }
 
-export function Setup({
+function Setup({
   routes,
   beforeEach,
   afterEach,
@@ -97,6 +98,7 @@ export function Setup({
     return response => {
       if (response === false) {
         RouterAction({
+          path: routeConfig.path || '/',
           params: routeConfig.params || {},
           meta: routeConfig.meta || {},
           tags: routeConfig.tags || [],
@@ -127,7 +129,9 @@ export function Setup({
       const m = router.helpers.match(path, router._routes);
       const mPath = m ? (m.route && m.route.route) : path;
       const routeConfig = Object.assign(
-        {},
+        {
+          path: mPath,
+        },
         routesConfig[mPath],
         { params },
       );
@@ -154,7 +158,7 @@ export function Setup({
 
   routeKeys
     .reduce((accRouter, key) => {
-      const config = Object.assign({}, spreadRoutes[key], { params: {} });
+      const config = Object.assign({}, spreadRoutes[key], { path: key, params: {} });
 
       routesConfig[key] = config;
 
@@ -173,7 +177,9 @@ export function Setup({
             const m = router.helpers.match(path, router._routes);
             const mPath = m ? (m.route && m.route.route) : path;
             const routeConfig = Object.assign(
-              {},
+              {
+                path: mPath,
+              },
               routesConfig[mPath],
               Object.assign({}, config.params, params)
             );
@@ -192,8 +198,8 @@ export function Setup({
   return router;
 }
 
-export function RouterBody({ placeholder = 'Loading..' }) {
-  const { component, title } = Radi.Watch(RouterStore);
+function RouterBody({ placeholder = 'Loading..' }) {
+  const { component, title } = Radi.watch(RouterStore);
 
   if (typeof title === 'string') {
     Title.setText(title);
@@ -216,17 +222,33 @@ export function RouterBody({ placeholder = 'Loading..' }) {
   return component;
 }
 
-export function navigate(e) {
+function navigate(e) {
   e.preventDefault();
   const route = e.target.getAttribute('href');
 
   router.navigate(route);
 }
 
-export function Link(params) {
-  const { children, onclick, ...restParams } = params;
+function Link(params) {
+  const { children, onclick, active = 'strict', ...restParams } = params;
+
   return Radi.html('a', Object.assign({}, restParams, {
     onclick: (e) => (navigate(e), typeof onclick === 'function' && onclick(e)),
+    onmount: (a) => {
+      if (!active || active === 'none') return false;
+
+      const link = a.target;
+      RouterStore.subscribe((state) => {
+        if (
+          (active === 'loose' && new RegExp('^' + params.href).test(state.path)) ||
+          (active === 'strict' && params.href === state.path)
+        ) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    },
   }), children);
 }
 
@@ -237,6 +259,7 @@ export default {
   Setup,
   RouterStore,
   RouterBody,
-  navigate,
+  Body: RouterBody,
+  navigate: router.navigate,
   Link,
 };
