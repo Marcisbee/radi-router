@@ -5,7 +5,7 @@
 [![npm version](https://img.shields.io/npm/v/radi-router.svg?style=flat-square)](https://www.npmjs.com/package/radi-router)
 [![npm downloads](https://img.shields.io/npm/dm/radi-router.svg?style=flat-square)](https://www.npmjs.com/package/radi-router)
 [![gzip bundle size](http://img.badgesize.io/https://unpkg.com/radi-router@0.1.1/dist/radi-router.min.js?compression=gzip&style=flat-square)](https://unpkg.com/radi-router@0.1.1/dist/radi-router.js)
-[![radi workspace on slack](https://img.shields.io/badge/slack-radijs-3eb891.svg?style=flat-square)](https://join.slack.com/t/radijs/shared_invite/enQtMjk3NTE2NjYxMTI2LWFmMTM5NTgwZDI5NmFlYzMzYmMxZjBhMGY0MGM2MzY5NmExY2Y0ODBjNDNmYjYxZWYxMjEyNjJhNjA5OTJjNzQ)
+[![discord](https://dcbadge.vercel.app/api/server/a62gfaDW2e?style=flat-square)](https://discord.gg/a62gfaDW2e)
 
 
 ## Installation
